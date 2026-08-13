@@ -43,24 +43,28 @@ export function EditMode({
   const [pending, startTransition] = useTransition();
   const [savedFlash, setSavedFlash] = useState(false);
   const [popover, setPopover] = useState<Popover | null>(null);
+  const [textX, setTextX] = useState<{ el: HTMLElement; x: number; y: number } | null>(null);
   const fileTarget = useRef<{ wrap: HTMLElement; field: string } | { memberId: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  function markDirty(target: HTMLElement) {
+    const spec = target.getAttribute("data-edit")!;
+    if (spec.startsWith("block:")) {
+      const wrap = target.closest("[data-block-id]") as HTMLElement | null;
+      if (wrap) dirtyBlocks.current.add(wrap);
+    } else if (spec.startsWith("member:")) {
+      dirtyMembers.current.set(spec, target.innerText);
+    }
+    setDirty(dirtyBlocks.current.size + dirtyMembers.current.size);
+    setSavedFlash(false);
+  }
 
   useEffect(() => {
     function onInput(e: Event) {
       const el = e.target as HTMLElement;
       const target = el.closest?.("[data-edit]") as HTMLElement | null;
-      if (!target) return;
-      const spec = target.getAttribute("data-edit")!;
-      if (spec.startsWith("block:")) {
-        const wrap = target.closest("[data-block-id]") as HTMLElement | null;
-        if (wrap) dirtyBlocks.current.add(wrap);
-      } else if (spec.startsWith("member:")) {
-        dirtyMembers.current.set(spec, target.innerText);
-      }
-      setDirty(dirtyBlocks.current.size + dirtyMembers.current.size);
-      setSavedFlash(false);
+      if (target) markDirty(target);
     }
     function onClick(e: MouseEvent) {
       const t = e.target as HTMLElement;
@@ -71,12 +75,31 @@ export function EditMode({
     function onBeforeUnload(e: BeforeUnloadEvent) {
       if (dirtyBlocks.current.size + dirtyMembers.current.size > 0) e.preventDefault();
     }
+    // Zweef-kruisje bij elk bewerkbaar tekstelement om het leeg te maken.
+    function onMouseOver(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (t.closest?.(".eb-floatx")) return;
+      const el = t.closest?.("[data-edit]") as HTMLElement | null;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setTextX({ el, x: Math.min(r.right - 8, window.innerWidth - 30), y: Math.max(4, r.top - 10) });
+      } else {
+        setTextX(null);
+      }
+    }
+    function onScroll() {
+      setTextX(null);
+    }
     document.addEventListener("input", onInput, true);
     document.addEventListener("click", onClick, true);
+    document.addEventListener("mouseover", onMouseOver, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => {
       document.removeEventListener("input", onInput, true);
       document.removeEventListener("click", onClick, true);
+      document.removeEventListener("mouseover", onMouseOver, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, []);
@@ -330,6 +353,22 @@ export function EditMode({
           Beheer
         </a>
       </div>
+
+      {textX && (
+        <button
+          type="button"
+          className="eb-op eb-x eb-floatx"
+          style={{ left: textX.x, top: textX.y }}
+          title="Deze tekst weghalen"
+          onClick={() => {
+            textX.el.innerText = "";
+            markDirty(textX.el);
+            setTextX(null);
+          }}
+        >
+          ✕
+        </button>
+      )}
 
       <input
         ref={fileRef}

@@ -204,6 +204,9 @@ a{color:inherit;text-decoration:none}
 .eb-op.eb-x{position:absolute;top:8px;right:8px;width:24px;height:24px;padding:0;display:grid;place-items:center;background:#fff;color:#a33333;border:1px solid #e0b8b8;font-size:.8rem;opacity:0;transition:opacity .12s}
 .eb-rel:hover>.eb-op.eb-x,.nm-check li:hover .eb-op.eb-x,.eb-btnwrap:hover .eb-op.eb-x{opacity:1}
 .eb-op.eb-x:hover{background:#a33333;color:#fff;border-color:#a33333}
+.eb-op.eb-floatx{position:fixed;z-index:46;opacity:1;width:24px;height:24px;padding:0;display:grid;place-items:center;background:#fff;color:#a33333;border:1px solid #e0b8b8;border-radius:6px;box-shadow:0 4px 14px rgba(15,40,70,.3);font-size:.8rem;cursor:pointer}
+.eb-op.eb-floatx:hover{background:#a33333;color:#fff;border-color:#a33333}
+[data-edit]:empty{display:inline-block;min-width:60px;min-height:1em;outline:1px dashed rgba(176,134,44,.5);outline-offset:2px}
 .nm-check li{position:relative;padding-right:30px}
 .nm-check li .eb-op.eb-x{top:2px;right:0}
 .nm-fact{padding-right:26px}
