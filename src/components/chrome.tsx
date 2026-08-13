@@ -2,6 +2,8 @@ import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
 import { db, pages } from "@/db";
 import { getSettings } from "@/lib/settings";
+import { Analytics } from "@/components/analytics";
+import { CookieBanner } from "@/components/cookie-banner";
 
 export async function getNavPages() {
   return db
@@ -97,6 +99,8 @@ export async function SiteFooter() {
           <span>Website door Novae Media</span>
         </div>
       </div>
+      <Analytics />
+      <CookieBanner />
     </footer>
   );
 }

@@ -58,6 +58,18 @@ export const settings = pgTable("settings", {
   value: jsonb("value").notNull(),
 });
 
+// Anonieme bezoekersstatistieken: geen persoonsgegevens, alleen een
+// dag-hash (ip+ua+dag) om unieke bezoekers per dag te kunnen tellen.
+export const pageViews = pgTable("page_views", {
+  id: serial("id").primaryKey(),
+  path: text("path").notNull(),
+  referrer: text("referrer").notNull().default(""),
+  device: text("device").notNull().default(""),
+  country: text("country").notNull().default(""),
+  visitorHash: text("visitor_hash").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Inzendingen van het contactformulier.
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
