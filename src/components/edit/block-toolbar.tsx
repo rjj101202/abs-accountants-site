@@ -3,8 +3,6 @@ import { moveBlock, toggleBlock, deleteBlock, createBlock } from "@/app/admin/ac
 import { BLOCK_TYPES } from "@/lib/blocks";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 
-// Bloktypes met een instelbare witte/beige achtergrond.
-const ALT_TYPES = new Set(["text", "cards", "split", "cta", "team", "blog", "contactInfo", "contactForm", "image"]);
 
 // Zwevende knoppenbalk per blok, alleen zichtbaar in bewerkmodus op de site.
 export function BlockToolbar({
@@ -49,11 +47,9 @@ export function BlockToolbar({
       <button className="eb-btn eb-txt" type="button" data-op="change-type" title="Dit blok omzetten naar een andere vormgeving">
         Vormgeving
       </button>
-      {ALT_TYPES.has(type) && (
-        <button className="eb-btn eb-txt" type="button" data-op="toggle-alt" title="Wissel tussen witte en beige achtergrond">
-          Achtergrond
-        </button>
-      )}
+      <button className="eb-btn eb-txt" type="button" data-op="colors" title="Achtergrond-, tekst- en accentkleur van dit blok">
+        Kleur
+      </button>
       <form action={toggleBlock}>
         {hidden}
         <button className="eb-btn eb-txt" type="submit" title="Voor bezoekers verbergen of tonen">

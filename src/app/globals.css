@@ -159,6 +159,17 @@ a{color:inherit;text-decoration:none}
 .eb-typelist button:hover{border-color:var(--gold);background:#fff}
 .eb-typelist button b{font-size:.83rem}
 .eb-typelist button span{font-size:.75rem;color:var(--muted)}
+.eb-kleurrij{display:grid;gap:5px}
+.eb-kleurlabel{font-size:.78rem;font-weight:700}
+.eb-swatches{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.eb-swatch{width:26px;height:26px;border-radius:7px;border:1px solid #cfd3da;cursor:pointer;padding:0}
+.eb-swatch.on{outline:2px solid var(--gold);outline-offset:1px}
+.eb-swatches input[type=color]{width:32px;height:28px;border:1px solid #cfd3da;border-radius:7px;padding:1px;background:#fff;cursor:pointer}
+.eb-swatch-reset{border:1px solid #cfd3da;background:#fff;border-radius:7px;padding:4px 9px;font-size:.72rem;font-weight:700;cursor:pointer;color:var(--muted)}
+.eb-swatch-reset:hover{border-color:var(--navy);color:var(--navy)}
+/* Blokken met eigen tekstkleur: laat vaste tekstkleuren de sectiekleur volgen
+   (kaart- en formulierinhoud houden hun eigen contrast). */
+.nm-tinted .nm-h1,.nm-tinted .nm-h2,.nm-tinted .nm-hero-h,.nm-tinted .nm-lead,.nm-tinted .nm-p,.nm-tinted .nm-quote,.nm-tinted .nm-check li,.nm-tinted .nm-check b,.nm-tinted .nm-fact b,.nm-tinted .nm-fact span,.nm-tinted .nm-caption{color:inherit}
 .eb-bar form{display:contents}
 .eb-label{color:#c3d0e0;font-size:.75rem;font-weight:700;padding:0 6px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .eb-btn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.12);color:#fff;border:0;cursor:pointer;font-size:.85rem;line-height:1;text-decoration:none}

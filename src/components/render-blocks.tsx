@@ -100,6 +100,29 @@ function secClass(data: Data) {
   return data.alt ? "nm-sec alt" : "nm-sec";
 }
 
+// Per-blok kleurinstellingen (bgColor/textColor/accentColor in de blokdata)
+// als inline stijl + CSS-variabelen, zodat de klant elk blok kan bijkleuren.
+function secProps(data: Data, baseClass: string): { className: string; style?: React.CSSProperties } {
+  const style: Record<string, string> = {};
+  const bg = str(data.bgColor);
+  const tx = str(data.textColor);
+  const ac = str(data.accentColor);
+  if (bg) style.background = bg;
+  if (tx) {
+    style.color = tx;
+    style["--ink"] = tx;
+    style["--muted"] = tx;
+  }
+  if (ac) {
+    style["--gold"] = ac;
+    style["--gold-d"] = ac;
+  }
+  const className = tx ? `${baseClass} nm-tinted` : baseClass;
+  return Object.keys(style).length > 0
+    ? { className, style: style as React.CSSProperties }
+    : { className };
+}
+
 export async function RenderBlock({
   type,
   data,
@@ -134,7 +157,7 @@ export async function RenderBlock({
     case "hero": {
       const facts = list<Item>(data.facts);
       return (
-        <section className="nm-hero">
+        <section {...secProps(data, "nm-hero")}>
           <div className="nm-wrap">
             <div className="nm-hero-in">
               <div>
@@ -178,7 +201,7 @@ export async function RenderBlock({
 
     case "pagehead":
       return (
-        <section className="nm-pagehead">
+        <section {...secProps(data, "nm-pagehead")}>
           <div className="nm-wrap">
             <div className="nm-crumb">
               <Link href="/">Home</Link> &rsaquo; {pageTitle}
@@ -196,7 +219,7 @@ export async function RenderBlock({
 
     case "text":
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             <div className="nm-rule"></div>
             {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
@@ -212,7 +235,7 @@ export async function RenderBlock({
       const items = list<Item>(data.items);
       const three = str(data.columns) === "3";
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             {(str(data.eyebrow) || str(data.title)) && <div className="nm-rule"></div>}
             {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
@@ -250,7 +273,7 @@ export async function RenderBlock({
       const checklist = list<Item>(data.checklist);
       const img = str(data.image);
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             <div className={data.reverse ? "nm-split rev" : "nm-split"}>
               <div>
@@ -287,7 +310,7 @@ export async function RenderBlock({
 
     case "band":
       return (
-        <section className="nm-sec nm-band">
+        <section {...secProps(data, "nm-sec nm-band")}>
           <div className="nm-wrap" style={{ textAlign: "center" }}>
             <div className="nm-rule" style={{ margin: "0 auto 22px" }}></div>
             <p className="nm-quote" style={{ maxWidth: "28ch", margin: "0 auto" }} {...at("quote")}>{str(data.quote)}</p>
@@ -311,9 +334,9 @@ export async function RenderBlock({
 
     case "cta":
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
-            <div className="nm-cta">
+            <div className="nm-cta" style={str(data.bgColor) ? { background: str(data.bgColor) } : undefined}>
               <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>
               {(str(data.text) || edit) && <p {...at("text")}>{str(data.text)}</p>}
               {((str(data.buttonLabel) && str(data.buttonHref)) || edit) && (
@@ -342,7 +365,7 @@ export async function RenderBlock({
         .where(eq(teamMembers.visible, true))
         .orderBy(asc(teamMembers.sort), asc(teamMembers.id));
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             {(str(data.eyebrow) || str(data.title)) && <div className="nm-rule"></div>}
             {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
@@ -397,7 +420,7 @@ export async function RenderBlock({
         .orderBy(desc(blogPosts.publishedAt));
       if (max) q = q.slice(0, max);
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             {(str(data.eyebrow) || str(data.title)) && <div className="nm-rule"></div>}
             {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
@@ -454,7 +477,7 @@ export async function RenderBlock({
         ),
       });
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             <div className="nm-contact">
               {cards.map((c, i) => (
@@ -482,7 +505,7 @@ export async function RenderBlock({
 
     case "contactForm":
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             <div className="nm-split">
               <div>
@@ -501,7 +524,7 @@ export async function RenderBlock({
       const img = str(data.image);
       if (!img && !edit) return null;
       return (
-        <section className={secClass(data)}>
+        <section {...secProps(data, secClass(data))}>
           <div className="nm-wrap">
             {img ? (
               <div className="nm-fig eb-rel">

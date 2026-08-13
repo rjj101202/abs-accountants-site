@@ -9,10 +9,11 @@ import { Icon } from "@/components/icons";
 type Data = Record<string, unknown>;
 type BlockEdit = { id: number; pageId: number; data: Data };
 
-// Popover-context voor icoonkiezer, link-editor en vormgeving-kiezer.
+// Popover-context voor icoonkiezer, link-editor, vormgeving- en kleurkiezer.
 type Popover =
   | { kind: "icon"; wrap: HTMLElement; field: string; index: number; x: number; y: number }
   | { kind: "type"; wrap: HTMLElement; x: number; y: number }
+  | { kind: "colors"; wrap: HTMLElement; x: number; y: number }
   | {
       kind: "link";
       wrap: HTMLElement;
@@ -167,6 +168,11 @@ export function EditMode({
         case "change-type": {
           const r = btn.getBoundingClientRect();
           setPopover({ kind: "type", wrap, x: Math.max(12, r.right - 300), y: r.bottom + 6 });
+          break;
+        }
+        case "colors": {
+          const r = btn.getBoundingClientRect();
+          setPopover({ kind: "colors", wrap, x: Math.max(12, r.right - 300), y: r.bottom + 6 });
           break;
         }
         case "edit-link": {
@@ -392,7 +398,19 @@ export function EditMode({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {popover.kind === "type" ? (
+            {popover.kind === "colors" ? (
+              <ColorEditor
+                initial={JSON.parse(popover.wrap.getAttribute("data-block-json") ?? "{}") as Data}
+                onApply={(colors) => {
+                  mutateAndSave(popover.wrap, (d) => {
+                    for (const key of ["bgColor", "textColor", "accentColor"] as const) {
+                      if (colors[key]) d[key] = colors[key];
+                      else delete d[key];
+                    }
+                  });
+                }}
+              />
+            ) : popover.kind === "type" ? (
               <>
                 <b>Vormgeving van dit blok</b>
                 <div className="eb-typelist">
@@ -472,6 +490,88 @@ export function EditMode({
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+const KLEUR_PRESETS: Record<string, { label: string; values: { c: string; naam: string }[] }> = {
+  bgColor: {
+    label: "Achtergrond",
+    values: [
+      { c: "#ffffff", naam: "Wit" },
+      { c: "#f6f5f1", naam: "Beige" },
+      { c: "#eef2f7", naam: "Lichtblauw" },
+      { c: "#173a63", naam: "Marineblauw" },
+      { c: "#0f2846", naam: "Donkerblauw" },
+    ],
+  },
+  textColor: {
+    label: "Tekst",
+    values: [
+      { c: "#16233c", naam: "Donker" },
+      { c: "#ffffff", naam: "Wit" },
+    ],
+  },
+  accentColor: {
+    label: "Accent (lijntjes en kopjes)",
+    values: [
+      { c: "#b0862c", naam: "Goud" },
+      { c: "#e07b1f", naam: "Oranje" },
+      { c: "#173a63", naam: "Marineblauw" },
+      { c: "#3d7a4f", naam: "Groen" },
+    ],
+  },
+};
+
+function ColorEditor({
+  initial,
+  onApply,
+}: {
+  initial: Data;
+  onApply: (colors: Record<string, string>) => void;
+}) {
+  const [colors, setColors] = useState<Record<string, string>>({
+    bgColor: typeof initial.bgColor === "string" ? initial.bgColor : "",
+    textColor: typeof initial.textColor === "string" ? initial.textColor : "",
+    accentColor: typeof initial.accentColor === "string" ? initial.accentColor : "",
+  });
+  return (
+    <>
+      <b>Kleuren van dit blok</b>
+      {Object.entries(KLEUR_PRESETS).map(([key, preset]) => (
+        <div key={key} className="eb-kleurrij">
+          <span className="eb-kleurlabel">{preset.label}</span>
+          <span className="eb-swatches">
+            {preset.values.map((v) => (
+              <button
+                key={v.c}
+                type="button"
+                title={v.naam}
+                className={colors[key].toLowerCase() === v.c ? "eb-swatch on" : "eb-swatch"}
+                style={{ background: v.c }}
+                onClick={() => setColors((c) => ({ ...c, [key]: v.c }))}
+              />
+            ))}
+            <input
+              type="color"
+              title="Eigen kleur kiezen"
+              value={colors[key] || "#173a63"}
+              onChange={(e) => setColors((c) => ({ ...c, [key]: e.target.value }))}
+            />
+            <button
+              type="button"
+              className="eb-swatch-reset"
+              title="Terug naar de standaardkleur"
+              onClick={() => setColors((c) => ({ ...c, [key]: "" }))}
+            >
+              Standaard
+            </button>
+          </span>
+        </div>
+      ))}
+      <button type="button" className="eb-save" style={{ marginTop: 8 }} onClick={() => onApply(colors)}>
+        Toepassen
+      </button>
     </>
   );
 }
