@@ -111,7 +111,7 @@ export function EditMode({
   return (
     <div className="eb-savebar">
       <span className="eb-hint">
-        ✏️ Bewerkmodus: klik op een tekst en typ. Blokken verplaats of verwijder je met de knopjes per blok.
+        Bewerkmodus: klik op een tekst en typ. Blokken verplaats of verwijder je met de knopjes per blok.
       </span>
       <button className="eb-save" onClick={onSave} disabled={pending || dirty === 0} type="button">
         {pending ? "Opslaan…" : dirty > 0 ? `Opslaan (${dirty})` : savedFlash ? "Opgeslagen ✓" : "Opslaan"}

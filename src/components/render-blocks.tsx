@@ -431,7 +431,7 @@ export async function RenderBlock({
         return edit ? (
           <section className="nm-sec">
             <div className="nm-wrap">
-              <p className="nm-note">Afbeeldingsblok zonder afbeelding: kies er een via ⚙ Bewerken.</p>
+              <p className="nm-note">Afbeeldingsblok zonder afbeelding: kies er een via de knop Bewerk.</p>
             </div>
           </section>
         ) : null;

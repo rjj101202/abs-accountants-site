@@ -43,12 +43,12 @@ export function BlockToolbar({
       </form>
       <form action={toggleBlock}>
         {hidden}
-        <button className="eb-btn" title={visible ? "Verbergen" : "Tonen"} type="submit">
-          {visible ? "🙈" : "👁"}
+        <button className="eb-btn eb-txt" type="submit">
+          {visible ? "Verberg" : "Toon"}
         </button>
       </form>
-      <Link className="eb-btn" title="Alles bewerken (afbeeldingen, iconen, knoppen)" href={`${path}?bewerken=1&blok=${blockId}`}>
-        ⚙
+      <Link className="eb-btn eb-txt" title="Alles bewerken (afbeeldingen, iconen, knoppen)" href={`${path}?bewerken=1&blok=${blockId}`}>
+        Bewerk
       </Link>
       <form action={deleteBlock}>
         {hidden}

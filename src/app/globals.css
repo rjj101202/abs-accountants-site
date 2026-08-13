@@ -153,6 +153,7 @@ a{color:inherit;text-decoration:none}
 .eb-btn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.12);color:#fff;border:0;cursor:pointer;font-size:.85rem;line-height:1;text-decoration:none}
 .eb-btn:hover{background:rgba(255,255,255,.28)}
 .eb-btn:disabled{opacity:.35;cursor:default}
+.eb-btn.eb-txt{width:auto;padding:0 10px;font-size:.78rem;font-weight:700}
 .eb-btn.eb-del:hover{background:#a33333}
 .eb-add{display:flex;gap:8px;justify-content:center;align-items:center;padding:7px 0;background:repeating-linear-gradient(90deg,transparent,transparent 6px,rgba(23,58,99,.12) 6px,rgba(23,58,99,.12) 12px);opacity:.55;transition:opacity .15s}
 .eb-add:hover{opacity:1}

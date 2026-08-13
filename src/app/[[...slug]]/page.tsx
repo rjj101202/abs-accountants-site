@@ -59,7 +59,7 @@ export default async function Page({ params, searchParams }: Props) {
       .where(edit ? eq(blocks.pageId, page.id) : and(eq(blocks.pageId, page.id), eq(blocks.visible, true)))
       .orderBy(asc(blocks.sort), asc(blocks.id));
 
-    // ⚙-paneel: volledig blokformulier als overlay op de site zelf.
+    // Bewerk-paneel: volledig blokformulier als overlay op de site zelf.
     const overlayBlock = edit && blok ? pageBlocks.find((b) => b.id === Number(blok)) : undefined;
 
     return (
@@ -115,7 +115,7 @@ export default async function Page({ params, searchParams }: Props) {
         </main>
         <SiteFooter />
         {admin && !edit && (
-          <a className="eb-fab" href={`${path}?bewerken=1`}>✏️ Site bewerken</a>
+          <a className="eb-fab" href={`${path}?bewerken=1`}>Site bewerken</a>
         )}
         {edit && <EditMode path={path} save={saveInlineEdits} />}
         {overlayBlock && (
@@ -191,7 +191,7 @@ export default async function Page({ params, searchParams }: Props) {
           </main>
           <SiteFooter />
           {admin && (
-            <a className="eb-fab" href={`/admin/blog/${post.id}`}>✏️ Bericht bewerken</a>
+            <a className="eb-fab" href={`/admin/blog/${post.id}`}>Bericht bewerken</a>
           )}
         </>
       );
