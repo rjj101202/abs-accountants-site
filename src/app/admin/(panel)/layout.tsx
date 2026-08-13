@@ -20,6 +20,9 @@ export default async function AdminPanelLayout({ children }: { children: React.R
     <div className="adm">
       <aside className="adm-side">
         <span className="brand">ABS · Beheer</span>
+        <Link className="adm-editsite" href="/?bewerken=1">
+          Site bewerken
+        </Link>
         {NAV.map((n) => (
           <Link key={n.href} href={n.href}>
             {n.label}
