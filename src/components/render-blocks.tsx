@@ -8,9 +8,12 @@ import { ContactForm } from "@/components/contact-form";
 type Data = Record<string, unknown>;
 type Btn = { label?: string; href?: string; style?: string };
 type Item = { icon?: string; title?: string; text?: string };
+// Props die een element inline bewerkbaar maken (data-edit + contentEditable).
+type EditAt = (path: string) => Record<string, unknown>;
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+const noEdit: EditAt = () => ({});
 
 function paragraphs(body: string) {
   return body
@@ -19,7 +22,19 @@ function paragraphs(body: string) {
     .filter(Boolean);
 }
 
-function Buttons({ data, onDark, center }: { data: Data; onDark?: boolean; center?: boolean }) {
+function Paragraphs({ body, field, at, className }: { body: string; field: string; at: EditAt; className: string }) {
+  return (
+    <>
+      {paragraphs(body).map((p, i) => (
+        <p className={className} key={i} {...at(`${field}[${i}]`)}>
+          {p}
+        </p>
+      ))}
+    </>
+  );
+}
+
+function Buttons({ data, at, onDark, center }: { data: Data; at: EditAt; onDark?: boolean; center?: boolean }) {
   const btns = list<Btn>(data.buttons).filter((b) => b.label && b.href);
   if (btns.length === 0) return null;
   return (
@@ -28,7 +43,7 @@ function Buttons({ data, onDark, center }: { data: Data; onDark?: boolean; cente
         const cls =
           b.style === "gold" ? "nm-btn gold" : b.style === "ghost" ? (onDark ? "nm-btn on-dark ghost" : "nm-btn ghost") : "nm-btn";
         return (
-          <Link key={i} className={cls} href={b.href!}>
+          <Link key={i} className={cls} href={b.href!} {...at(`buttons[${i}].label`)}>
             {b.label}
           </Link>
         );
@@ -37,15 +52,17 @@ function Buttons({ data, onDark, center }: { data: Data; onDark?: boolean; cente
   );
 }
 
-function Check({ items }: { items: Item[] }) {
+function Check({ items, field, at }: { items: Item[]; field: string; at: EditAt }) {
   return (
     <ul className="nm-check">
       {items.map((c, i) => (
         <li key={i}>
           <Icon name="shield" />
           <div>
-            {c.title ? <b>{c.title} </b> : null}
-            {c.text}
+            {c.title ? (
+              <b {...at(`${field}[${i}].title`)}>{c.title}</b>
+            ) : null}{" "}
+            <span {...at(`${field}[${i}].text`)}>{c.text}</span>
           </div>
         </li>
       ))}
@@ -62,14 +79,31 @@ export async function RenderBlock({
   data,
   pageSlug,
   pageTitle,
-  isHome,
+  blockId,
+  edit = false,
 }: {
   type: string;
   data: Data;
   pageSlug: string;
   pageTitle: string;
-  isHome: boolean;
+  blockId?: number;
+  edit?: boolean;
 }) {
+  // In bewerkmodus krijgt elk tekst-element een data-edit-pad + contentEditable;
+  // de EditMode-client leest wijzigingen uit de DOM en slaat ze per blok op.
+  const at: EditAt =
+    edit && blockId
+      ? (path: string) => ({
+          "data-edit": `block:${blockId}:${path}`,
+          contentEditable: true,
+          suppressContentEditableWarning: true,
+        })
+      : noEdit;
+  const memberAt = (id: number, field: string): Record<string, unknown> =>
+    edit
+      ? { "data-edit": `member:${id}:${field}`, contentEditable: true, suppressContentEditableWarning: true }
+      : {};
+
   switch (type) {
     case "hero": {
       const facts = list<Item>(data.facts);
@@ -78,21 +112,25 @@ export async function RenderBlock({
           <div className="nm-wrap">
             <div className="nm-hero-in">
               <div>
-                {str(data.eyebrow) && <span className="nm-ey on-dark">{str(data.eyebrow)}</span>}
-                <h1 className="nm-hero-h" style={{ marginTop: 14 }}>{str(data.title)}</h1>
-                {str(data.text) && <p className="nm-lead" style={{ marginTop: 18 }}>{str(data.text)}</p>}
-                <Buttons data={data} onDark />
+                {(str(data.eyebrow) || edit) && (
+                  <span className="nm-ey on-dark" {...at("eyebrow")}>{str(data.eyebrow)}</span>
+                )}
+                <h1 className="nm-hero-h" style={{ marginTop: 14 }} {...at("title")}>{str(data.title)}</h1>
+                {(str(data.text) || edit) && (
+                  <p className="nm-lead" style={{ marginTop: 18 }} {...at("text")}>{str(data.text)}</p>
+                )}
+                <Buttons data={data} at={at} onDark />
               </div>
               {(str(data.asideTitle) || facts.length > 0) && (
                 <aside className="nm-aside">
-                  {str(data.asideTitle) && <h3>{str(data.asideTitle)}</h3>}
-                  {str(data.asideSub) && <p className="sub">{str(data.asideSub)}</p>}
+                  {str(data.asideTitle) && <h3 {...at("asideTitle")}>{str(data.asideTitle)}</h3>}
+                  {str(data.asideSub) && <p className="sub" {...at("asideSub")}>{str(data.asideSub)}</p>}
                   {facts.map((f, i) => (
                     <div className="nm-fact" key={i}>
                       <Icon name={f.icon} />
                       <div>
-                        <b>{f.title}</b>
-                        <span>{f.text}</span>
+                        <b {...at(`facts[${i}].title`)}>{f.title}</b>
+                        <span {...at(`facts[${i}].text`)}>{f.text}</span>
                       </div>
                     </div>
                   ))}
@@ -111,9 +149,13 @@ export async function RenderBlock({
             <div className="nm-crumb">
               <Link href="/">Home</Link> &rsaquo; {pageTitle}
             </div>
-            {str(data.eyebrow) && <span className="nm-ey on-dark">{str(data.eyebrow)}</span>}
-            <h1 className="nm-h1" style={{ marginTop: 12 }}>{str(data.title) || pageTitle}</h1>
-            {str(data.text) && <p className="nm-lead" style={{ marginTop: 16 }}>{str(data.text)}</p>}
+            {(str(data.eyebrow) || edit) && (
+              <span className="nm-ey on-dark" {...at("eyebrow")}>{str(data.eyebrow)}</span>
+            )}
+            <h1 className="nm-h1" style={{ marginTop: 12 }} {...at("title")}>{str(data.title) || pageTitle}</h1>
+            {(str(data.text) || edit) && (
+              <p className="nm-lead" style={{ marginTop: 16 }} {...at("text")}>{str(data.text)}</p>
+            )}
           </div>
         </section>
       );
@@ -123,12 +165,10 @@ export async function RenderBlock({
         <section className={secClass(data)}>
           <div className="nm-wrap">
             <div className="nm-rule"></div>
-            {str(data.eyebrow) && <span className="nm-ey">{str(data.eyebrow)}</span>}
-            {str(data.title) && <h2 className="nm-h2">{str(data.title)}</h2>}
+            {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
+            {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
             <div style={{ maxWidth: "68ch" }}>
-              {paragraphs(str(data.body)).map((p, i) => (
-                <p className="nm-p" key={i}>{p}</p>
-              ))}
+              <Paragraphs body={str(data.body)} field="body" at={at} className="nm-p" />
             </div>
           </div>
         </section>
@@ -140,21 +180,21 @@ export async function RenderBlock({
         <section className={secClass(data)}>
           <div className="nm-wrap">
             {(str(data.eyebrow) || str(data.title)) && <div className="nm-rule"></div>}
-            {str(data.eyebrow) && <span className="nm-ey">{str(data.eyebrow)}</span>}
-            {str(data.title) && <h2 className="nm-h2">{str(data.title)}</h2>}
-            {str(data.lead) && <p className="nm-lead">{str(data.lead)}</p>}
+            {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
+            {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
+            {(str(data.lead) || edit) && <p className="nm-lead" {...at("lead")}>{str(data.lead)}</p>}
             <div className={str(data.columns) === "3" ? "nm-cards three" : "nm-cards"}>
               {items.map((c, i) => (
                 <div className="nm-card" key={i}>
                   <div className="nm-ico">
                     <Icon name={c.icon} />
                   </div>
-                  <h3 className="nm-h3">{c.title}</h3>
-                  <p>{c.text}</p>
+                  <h3 className="nm-h3" {...at(`items[${i}].title`)}>{c.title}</h3>
+                  <p {...at(`items[${i}].text`)}>{c.text}</p>
                 </div>
               ))}
             </div>
-            <Buttons data={data} />
+            <Buttons data={data} at={at} />
           </div>
         </section>
       );
@@ -169,13 +209,11 @@ export async function RenderBlock({
             <div className={data.reverse ? "nm-split rev" : "nm-split"}>
               <div>
                 <div className="nm-rule"></div>
-                {str(data.eyebrow) && <span className="nm-ey">{str(data.eyebrow)}</span>}
-                {str(data.title) && <h2 className="nm-h2">{str(data.title)}</h2>}
-                {paragraphs(str(data.body)).map((p, i) => (
-                  <p className="nm-p" key={i}>{p}</p>
-                ))}
-                {img && checklist.length > 0 && <Check items={checklist} />}
-                <Buttons data={data} />
+                {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
+                {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
+                <Paragraphs body={str(data.body)} field="body" at={at} className="nm-p" />
+                {img && checklist.length > 0 && <Check items={checklist} field="checklist" at={at} />}
+                <Buttons data={data} at={at} />
               </div>
               <div className="nm-figside">
                 {img ? (
@@ -184,7 +222,7 @@ export async function RenderBlock({
                     <img src={img} alt={str(data.imageAlt)} />
                   </div>
                 ) : checklist.length > 0 ? (
-                  <Check items={checklist} />
+                  <Check items={checklist} field="checklist" at={at} />
                 ) : null}
               </div>
             </div>
@@ -198,10 +236,10 @@ export async function RenderBlock({
         <section className="nm-sec nm-band">
           <div className="nm-wrap" style={{ textAlign: "center" }}>
             <div className="nm-rule" style={{ margin: "0 auto 22px" }}></div>
-            <p className="nm-quote" style={{ maxWidth: "28ch", margin: "0 auto" }}>{str(data.quote)}</p>
+            <p className="nm-quote" style={{ maxWidth: "28ch", margin: "0 auto" }} {...at("quote")}>{str(data.quote)}</p>
             {str(data.buttonLabel) && str(data.buttonHref) && (
               <div className="nm-btns" style={{ justifyContent: "center" }}>
-                <Link className="nm-btn gold" href={str(data.buttonHref)}>
+                <Link className="nm-btn gold" href={str(data.buttonHref)} {...at("buttonLabel")}>
                   {str(data.buttonLabel)}
                 </Link>
               </div>
@@ -215,11 +253,11 @@ export async function RenderBlock({
         <section className={secClass(data)}>
           <div className="nm-wrap">
             <div className="nm-cta">
-              <h2 className="nm-h2">{str(data.title)}</h2>
-              {str(data.text) && <p>{str(data.text)}</p>}
+              <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>
+              {(str(data.text) || edit) && <p {...at("text")}>{str(data.text)}</p>}
               {str(data.buttonLabel) && str(data.buttonHref) && (
                 <div className="nm-btns">
-                  <Link className="nm-btn gold" href={str(data.buttonHref)}>
+                  <Link className="nm-btn gold" href={str(data.buttonHref)} {...at("buttonLabel")}>
                     {str(data.buttonLabel)}
                   </Link>
                 </div>
@@ -239,9 +277,9 @@ export async function RenderBlock({
         <section className={secClass(data)}>
           <div className="nm-wrap">
             {(str(data.eyebrow) || str(data.title)) && <div className="nm-rule"></div>}
-            {str(data.eyebrow) && <span className="nm-ey">{str(data.eyebrow)}</span>}
-            {str(data.title) && <h2 className="nm-h2">{str(data.title)}</h2>}
-            {str(data.lead) && <p className="nm-lead">{str(data.lead)}</p>}
+            {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
+            {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
+            {(str(data.lead) || edit) && <p className="nm-lead" {...at("lead")}>{str(data.lead)}</p>}
             <div className="nm-team">
               {members.map((m) => (
                 <div className="nm-tm" key={m.id}>
@@ -259,13 +297,20 @@ export async function RenderBlock({
                     )}
                   </div>
                   <div>
-                    <h3>{m.name}</h3>
-                    <p className="role">{m.role}</p>
-                    <p>{m.bio}</p>
+                    <h3 {...memberAt(m.id, "name")}>{m.name}</h3>
+                    <p className="role" {...memberAt(m.id, "role")}>{m.role}</p>
+                    <p {...memberAt(m.id, "bio")}>{m.bio}</p>
                   </div>
                 </div>
               ))}
             </div>
+            {edit && (
+              <p className="nm-note" style={{ marginTop: 18 }}>
+                Medewerkers toevoegen/verwijderen of een foto instellen doe je onder{" "}
+                <Link href="/admin/team" style={{ fontWeight: 600, textDecoration: "underline" }}>Beheer → Team</Link>;
+                de teksten hierboven kun je direct aanklikken en bewerken.
+              </p>
+            )}
           </div>
         </section>
       );
@@ -283,9 +328,9 @@ export async function RenderBlock({
         <section className={secClass(data)}>
           <div className="nm-wrap">
             {(str(data.eyebrow) || str(data.title)) && <div className="nm-rule"></div>}
-            {str(data.eyebrow) && <span className="nm-ey">{str(data.eyebrow)}</span>}
-            {str(data.title) && <h2 className="nm-h2">{str(data.title)}</h2>}
-            {str(data.lead) && <p className="nm-lead">{str(data.lead)}</p>}
+            {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
+            {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
+            {(str(data.lead) || edit) && <p className="nm-lead" {...at("lead")}>{str(data.lead)}</p>}
             <div className="nm-blog">
               {q.map((p) => (
                 <Link className="nm-post" key={p.id} href={`/${pageSlug ? pageSlug + "/" : ""}${p.slug}`}>
@@ -306,6 +351,12 @@ export async function RenderBlock({
               ))}
               {q.length === 0 && <p className="nm-p">Nog geen berichten.</p>}
             </div>
+            {edit && (
+              <p className="nm-note" style={{ marginTop: 18 }}>
+                Berichten schrijven of bewerken doe je onder{" "}
+                <Link href="/admin/blog" style={{ fontWeight: 600, textDecoration: "underline" }}>Beheer → Blog</Link>.
+              </p>
+            )}
           </div>
         </section>
       );
@@ -344,6 +395,14 @@ export async function RenderBlock({
                 </div>
               ))}
             </div>
+            {edit && (
+              <p className="nm-note" style={{ marginTop: 18 }}>
+                Deze gegevens komen uit{" "}
+                <Link href="/admin/instellingen" style={{ fontWeight: 600, textDecoration: "underline" }}>
+                  Beheer → Instellingen
+                </Link>.
+              </p>
+            )}
           </div>
         </section>
       );
@@ -356,11 +415,9 @@ export async function RenderBlock({
             <div className="nm-split">
               <div>
                 <div className="nm-rule"></div>
-                {str(data.eyebrow) && <span className="nm-ey">{str(data.eyebrow)}</span>}
-                {str(data.title) && <h2 className="nm-h2">{str(data.title)}</h2>}
-                {paragraphs(str(data.text)).map((p, i) => (
-                  <p className="nm-p" key={i}>{p}</p>
-                ))}
+                {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
+                {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
+                <Paragraphs body={str(data.text)} field="text" at={at} className="nm-p" />
               </div>
               <ContactForm path={pageSlug ? `/${pageSlug}` : "/"} />
             </div>
@@ -370,7 +427,15 @@ export async function RenderBlock({
 
     case "image": {
       const img = str(data.image);
-      if (!img) return null;
+      if (!img) {
+        return edit ? (
+          <section className="nm-sec">
+            <div className="nm-wrap">
+              <p className="nm-note">Afbeeldingsblok zonder afbeelding: kies er een via ⚙ Bewerken.</p>
+            </div>
+          </section>
+        ) : null;
+      }
       return (
         <section className={secClass(data)}>
           <div className="nm-wrap">
@@ -378,7 +443,7 @@ export async function RenderBlock({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img} alt={str(data.alt)} />
             </div>
-            {str(data.caption) && <p className="nm-caption">{str(data.caption)}</p>}
+            {(str(data.caption) || edit) && <p className="nm-caption" {...at("caption")}>{str(data.caption)}</p>}
           </div>
         </section>
       );

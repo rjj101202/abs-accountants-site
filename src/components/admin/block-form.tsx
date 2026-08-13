@@ -13,12 +13,16 @@ export function BlockForm({
   fields,
   initialData,
   save,
+  backHref,
+  backLabel,
 }: {
   pageId: number;
   blockId: number;
   fields: FieldDef[];
   initialData: Data;
   save: (pageId: number, blockId: number, data: Data) => Promise<void>;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const [data, setData] = useState<Data>(initialData);
   const [saved, setSaved] = useState(false);
@@ -47,8 +51,12 @@ export function BlockForm({
         <button className="adm-btn" onClick={onSave} disabled={pending} type="button">
           {pending ? "Opslaan…" : "Opslaan"}
         </button>
-        <button className="adm-btn sec" type="button" onClick={() => router.push(`/admin/paginas/${pageId}`)}>
-          Terug naar de pagina
+        <button
+          className="adm-btn sec"
+          type="button"
+          onClick={() => router.push(backHref ?? `/admin/paginas/${pageId}`)}
+        >
+          {backLabel ?? "Terug naar de pagina"}
         </button>
         {saved && <span style={{ color: "#295c29", fontWeight: 600, fontSize: ".9rem" }}>Opgeslagen ✓</span>}
       </div>

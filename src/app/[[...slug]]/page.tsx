@@ -3,13 +3,22 @@ import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db, pages, blocks, blogPosts } from "@/db";
 import { getSettings } from "@/lib/settings";
+import { isAdmin } from "@/lib/auth";
 import { SiteHeader, SiteFooter } from "@/components/chrome";
 import { RenderBlock } from "@/components/render-blocks";
+import { BlockToolbar, AddBlockButton } from "@/components/edit/block-toolbar";
+import { EditMode } from "@/components/edit/edit-mode";
+import { BlockForm } from "@/components/admin/block-form";
+import { BLOCK_TYPES, blockSummary } from "@/lib/blocks";
+import { saveBlock, saveInlineEdits } from "@/app/admin/actions";
 
 // Content komt uit de database en moet direct na een wijziging zichtbaar zijn.
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ slug?: string[] }> };
+type Props = {
+  params: Promise<{ slug?: string[] }>;
+  searchParams: Promise<{ bewerken?: string; blok?: string }>;
+};
 
 async function findPage(slugPath: string) {
   const rows = await db
@@ -20,7 +29,7 @@ async function findPage(slugPath: string) {
   return rows[0];
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: { params: Props["params"] }) {
   const { slug = [] } = await params;
   const s = await getSettings();
   if (slug.length === 0) return { title: `${s.siteName} | Spijkenisse` };
@@ -33,33 +42,102 @@ export async function generateMetadata({ params }: Props) {
   return { title: s.siteName };
 }
 
-export default async function Page({ params }: Props) {
+export default async function Page({ params, searchParams }: Props) {
   const { slug = [] } = await params;
+  const { bewerken, blok } = await searchParams;
   const slugPath = slug.join("/");
+  const path = slugPath ? `/${slugPath}` : "/";
+
+  const admin = await isAdmin();
+  const edit = admin && bewerken === "1";
 
   const page = await findPage(slugPath);
   if (page) {
     const pageBlocks = await db
       .select()
       .from(blocks)
-      .where(and(eq(blocks.pageId, page.id), eq(blocks.visible, true)))
+      .where(edit ? eq(blocks.pageId, page.id) : and(eq(blocks.pageId, page.id), eq(blocks.visible, true)))
       .orderBy(asc(blocks.sort), asc(blocks.id));
+
+    // ⚙-paneel: volledig blokformulier als overlay op de site zelf.
+    const overlayBlock = edit && blok ? pageBlocks.find((b) => b.id === Number(blok)) : undefined;
+
     return (
       <>
         <SiteHeader />
         <main>
-          {pageBlocks.map((b) => (
-            <RenderBlock
-              key={b.id}
-              type={b.type}
-              data={b.data as Record<string, unknown>}
-              pageSlug={page.slug}
-              pageTitle={page.title}
-              isHome={page.slug === ""}
-            />
-          ))}
+          {edit && pageBlocks.length > 0 && (
+            <AddBlockButton pageId={page.id} path={path} afterSort={Math.min(...pageBlocks.map((b) => b.sort)) - 1} />
+          )}
+          {pageBlocks.map((b, i) => {
+            const rendered = (
+              <RenderBlock
+                key={b.id}
+                type={b.type}
+                data={b.data as Record<string, unknown>}
+                pageSlug={page.slug}
+                pageTitle={page.title}
+                blockId={b.id}
+                edit={edit}
+              />
+            );
+            if (!edit) return rendered;
+            return (
+              <div
+                key={b.id}
+                className={b.visible ? "eb" : "eb eb-hidden"}
+                data-block-id={b.id}
+                data-page-id={page.id}
+                data-block-json={JSON.stringify(b.data)}
+              >
+                <BlockToolbar
+                  blockId={b.id}
+                  pageId={page.id}
+                  path={path}
+                  label={blockSummary(b.type, b.data as Record<string, unknown>).split(" — ")[0]}
+                  visible={b.visible}
+                  first={i === 0}
+                  last={i === pageBlocks.length - 1}
+                />
+                {rendered}
+                <AddBlockButton pageId={page.id} path={path} afterSort={b.sort} />
+              </div>
+            );
+          })}
+          {edit && pageBlocks.length === 0 && (
+            <div className="nm-sec">
+              <div className="nm-wrap">
+                <p className="nm-p">Deze pagina heeft nog geen blokken.</p>
+                <AddBlockButton pageId={page.id} path={path} afterSort={0} />
+              </div>
+            </div>
+          )}
         </main>
         <SiteFooter />
+        {admin && !edit && (
+          <a className="eb-fab" href={`${path}?bewerken=1`}>✏️ Site bewerken</a>
+        )}
+        {edit && <EditMode path={path} save={saveInlineEdits} />}
+        {overlayBlock && (
+          <div className="eb-overlay">
+            <div className="eb-panel">
+              <div className="eb-panel-head">
+                <b>{BLOCK_TYPES[overlayBlock.type]?.label ?? overlayBlock.type}</b>
+                <Link href={`${path}?bewerken=1`} className="eb-btn" title="Sluiten">✕</Link>
+              </div>
+              <p className="adm-sub">{BLOCK_TYPES[overlayBlock.type]?.description}</p>
+              <BlockForm
+                pageId={page.id}
+                blockId={overlayBlock.id}
+                fields={BLOCK_TYPES[overlayBlock.type]?.fields ?? []}
+                initialData={overlayBlock.data as Record<string, unknown>}
+                save={saveBlock}
+                backHref={`${path}?bewerken=1`}
+                backLabel="Sluiten"
+              />
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -112,6 +190,9 @@ export default async function Page({ params }: Props) {
             </section>
           </main>
           <SiteFooter />
+          {admin && (
+            <a className="eb-fab" href={`/admin/blog/${post.id}`}>✏️ Bericht bewerken</a>
+          )}
         </>
       );
     }

@@ -137,21 +137,39 @@ async function swapSort(
 
 // ---------- blokken ----------
 
+// "returnTo" (padded pad van de publieke pagina) stuurt na een blok-actie
+// terug naar de bewerkmodus op de site zelf i.p.v. naar /admin.
+function editReturn(formData: FormData): string | null {
+  const r = String(formData.get("returnTo") ?? "");
+  return r.startsWith("/") && !r.includes("//") ? r : null;
+}
+
 export async function createBlock(formData: FormData) {
   await requireAdmin();
   const pageId = Number(formData.get("pageId"));
   const type = String(formData.get("type"));
-  if (!BLOCK_TYPES[type]) redirect(`/admin/paginas/${pageId}`);
-  const max = await db
-    .select({ m: sql<number>`coalesce(max(${blocks.sort}),0)` })
-    .from(blocks)
-    .where(eq(blocks.pageId, pageId));
-  const [row] = await db
-    .insert(blocks)
-    .values({ pageId, type, data: {}, sort: (max[0]?.m ?? 0) + 1 })
-    .returning();
+  const returnTo = editReturn(formData);
+  if (!BLOCK_TYPES[type]) redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
+  const afterSortRaw = formData.get("afterSort");
+  let sort: number;
+  if (afterSortRaw !== null && afterSortRaw !== "") {
+    // Invoegen direct ná een bestaand blok: schuif alles erachter één op.
+    const afterSort = Number(afterSortRaw);
+    await db
+      .update(blocks)
+      .set({ sort: sql`${blocks.sort} + 1` })
+      .where(and(eq(blocks.pageId, pageId), sql`${blocks.sort} > ${afterSort}`));
+    sort = afterSort + 1;
+  } else {
+    const max = await db
+      .select({ m: sql<number>`coalesce(max(${blocks.sort}),0)` })
+      .from(blocks)
+      .where(eq(blocks.pageId, pageId));
+    sort = (max[0]?.m ?? 0) + 1;
+  }
+  const [row] = await db.insert(blocks).values({ pageId, type, data: {}, sort }).returning();
   bust();
-  redirect(`/admin/paginas/${pageId}/blok/${row.id}`);
+  redirect(returnTo ? `${returnTo}?bewerken=1&blok=${row.id}` : `/admin/paginas/${pageId}/blok/${row.id}`);
 }
 
 export async function saveBlock(pageId: number, blockId: number, data: Record<string, unknown>) {
@@ -164,19 +182,21 @@ export async function deleteBlock(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
   const pageId = Number(formData.get("pageId"));
+  const returnTo = editReturn(formData);
   await db.delete(blocks).where(eq(blocks.id, id));
   bust();
-  redirect(`/admin/paginas/${pageId}`);
+  redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
 }
 
 export async function toggleBlock(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
   const pageId = Number(formData.get("pageId"));
+  const returnTo = editReturn(formData);
   const row = (await db.select().from(blocks).where(eq(blocks.id, id)))[0];
   if (row) await db.update(blocks).set({ visible: !row.visible }).where(eq(blocks.id, id));
   bust();
-  redirect(`/admin/paginas/${pageId}`);
+  redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
 }
 
 export async function moveBlock(formData: FormData) {
@@ -184,9 +204,37 @@ export async function moveBlock(formData: FormData) {
   const id = Number(formData.get("id"));
   const pageId = Number(formData.get("pageId"));
   const dir = String(formData.get("dir"));
+  const returnTo = editReturn(formData);
   await swapSort(blocks, id, dir === "up", { pageId });
   bust();
-  redirect(`/admin/paginas/${pageId}`);
+  redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
+}
+
+// ---------- inline bewerken op de site zelf ----------
+
+const MEMBER_FIELDS = new Set(["name", "role", "bio"]);
+
+export type InlineEdits = {
+  blocks: { id: number; pageId: number; data: Record<string, unknown> }[];
+  members: { id: number; field: string; value: string }[];
+};
+
+export async function saveInlineEdits(edits: InlineEdits) {
+  await requireAdmin();
+  for (const b of edits.blocks) {
+    await db
+      .update(blocks)
+      .set({ data: b.data })
+      .where(and(eq(blocks.id, b.id), eq(blocks.pageId, b.pageId)));
+  }
+  for (const m of edits.members) {
+    if (!MEMBER_FIELDS.has(m.field)) continue;
+    await db
+      .update(teamMembers)
+      .set({ [m.field]: m.value.slice(0, 5000) })
+      .where(eq(teamMembers.id, m.id));
+  }
+  bust();
 }
 
 // ---------- team ----------
