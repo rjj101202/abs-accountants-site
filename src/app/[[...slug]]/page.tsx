@@ -96,6 +96,7 @@ export default async function Page({ params, searchParams }: Props) {
                   pageId={page.id}
                   path={path}
                   label={blockSummary(b.type, b.data as Record<string, unknown>).split(" — ")[0]}
+                  type={b.type}
                   visible={b.visible}
                   first={i === 0}
                   last={i === pageBlocks.length - 1}

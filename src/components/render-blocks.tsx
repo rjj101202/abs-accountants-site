@@ -4,6 +4,7 @@ import { db, teamMembers, blogPosts } from "@/db";
 import { getSettings } from "@/lib/settings";
 import { Icon } from "@/components/icons";
 import { ContactForm } from "@/components/contact-form";
+import { ItemX, AddItem, IconBtn, LinkOp, ImageOps } from "@/components/edit/ops";
 
 type Data = Record<string, unknown>;
 type Btn = { label?: string; href?: string; style?: string };
@@ -34,39 +35,64 @@ function Paragraphs({ body, field, at, className }: { body: string; field: strin
   );
 }
 
-function Buttons({ data, at, onDark, center }: { data: Data; at: EditAt; onDark?: boolean; center?: boolean }) {
+function Buttons({
+  data,
+  at,
+  edit,
+  onDark,
+  center,
+}: {
+  data: Data;
+  at: EditAt;
+  edit: boolean;
+  onDark?: boolean;
+  center?: boolean;
+}) {
   const btns = list<Btn>(data.buttons).filter((b) => b.label && b.href);
-  if (btns.length === 0) return null;
+  if (btns.length === 0 && !edit) return null;
   return (
     <div className="nm-btns" style={center ? { justifyContent: "center" } : undefined}>
       {btns.map((b, i) => {
         const cls =
           b.style === "gold" ? "nm-btn gold" : b.style === "ghost" ? (onDark ? "nm-btn on-dark ghost" : "nm-btn ghost") : "nm-btn";
-        return (
+        const link = (
           <Link key={i} className={cls} href={b.href!} {...at(`buttons[${i}].label`)}>
             {b.label}
           </Link>
         );
+        if (!edit) return link;
+        return (
+          <span className="eb-btnwrap" key={i}>
+            {link}
+            <span className="eb-btnops">
+              <LinkOp field="buttons" index={i} />
+              <ItemX field="buttons" index={i} title="Knop verwijderen" />
+            </span>
+          </span>
+        );
       })}
+      {edit && <AddItem field="buttons" def={{ label: "Nieuwe knop", href: "/contact", style: "solid" }} label="Knop" />}
     </div>
   );
 }
 
-function Check({ items, field, at }: { items: Item[]; field: string; at: EditAt }) {
+function Check({ items, field, at, edit }: { items: Item[]; field: string; at: EditAt; edit: boolean }) {
   return (
-    <ul className="nm-check">
-      {items.map((c, i) => (
-        <li key={i}>
-          <Icon name="shield" />
-          <div>
-            {c.title ? (
-              <b {...at(`${field}[${i}].title`)}>{c.title}</b>
-            ) : null}{" "}
-            <span {...at(`${field}[${i}].text`)}>{c.text}</span>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="nm-check">
+        {items.map((c, i) => (
+          <li key={i}>
+            <Icon name="shield" />
+            <div>
+              {c.title ? <b {...at(`${field}[${i}].title`)}>{c.title}</b> : null}{" "}
+              <span {...at(`${field}[${i}].text`)}>{c.text}</span>
+            </div>
+            {edit && <ItemX field={field} index={i} title="Punt verwijderen" />}
+          </li>
+        ))}
+      </ul>
+      {edit && <AddItem field={field} def={{ title: "Nieuw punt.", text: "Korte toelichting." }} label="Punt" />}
+    </>
   );
 }
 
@@ -119,21 +145,29 @@ export async function RenderBlock({
                 {(str(data.text) || edit) && (
                   <p className="nm-lead" style={{ marginTop: 18 }} {...at("text")}>{str(data.text)}</p>
                 )}
-                <Buttons data={data} at={at} onDark />
+                <Buttons data={data} at={at} edit={edit} onDark />
               </div>
-              {(str(data.asideTitle) || facts.length > 0) && (
+              {(str(data.asideTitle) || facts.length > 0 || edit) && (
                 <aside className="nm-aside">
-                  {str(data.asideTitle) && <h3 {...at("asideTitle")}>{str(data.asideTitle)}</h3>}
-                  {str(data.asideSub) && <p className="sub" {...at("asideSub")}>{str(data.asideSub)}</p>}
+                  {(str(data.asideTitle) || edit) && <h3 {...at("asideTitle")}>{str(data.asideTitle)}</h3>}
+                  {(str(data.asideSub) || edit) && <p className="sub" {...at("asideSub")}>{str(data.asideSub)}</p>}
                   {facts.map((f, i) => (
-                    <div className="nm-fact" key={i}>
-                      <Icon name={f.icon} />
+                    <div className="nm-fact eb-rel" key={i}>
+                      {edit ? <IconBtn field="facts" index={i} name={f.icon} /> : <Icon name={f.icon} />}
                       <div>
                         <b {...at(`facts[${i}].title`)}>{f.title}</b>
                         <span {...at(`facts[${i}].text`)}>{f.text}</span>
                       </div>
+                      {edit && <ItemX field="facts" index={i} title="Punt verwijderen" />}
                     </div>
                   ))}
+                  {edit && (
+                    <AddItem
+                      field="facts"
+                      def={{ icon: "shield", title: "Nieuw punt", text: "Korte toelichting" }}
+                      label="Punt"
+                    />
+                  )}
                 </aside>
               )}
             </div>
@@ -176,6 +210,7 @@ export async function RenderBlock({
 
     case "cards": {
       const items = list<Item>(data.items);
+      const three = str(data.columns) === "3";
       return (
         <section className={secClass(data)}>
           <div className="nm-wrap">
@@ -183,18 +218,29 @@ export async function RenderBlock({
             {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
             {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
             {(str(data.lead) || edit) && <p className="nm-lead" {...at("lead")}>{str(data.lead)}</p>}
-            <div className={str(data.columns) === "3" ? "nm-cards three" : "nm-cards"}>
+            <div className={three ? "nm-cards three" : "nm-cards"}>
               {items.map((c, i) => (
-                <div className="nm-card" key={i}>
-                  <div className="nm-ico">
-                    <Icon name={c.icon} />
-                  </div>
+                <div className="nm-card eb-rel" key={i}>
+                  <div className="nm-ico">{edit ? <IconBtn field="items" index={i} name={c.icon} /> : <Icon name={c.icon} />}</div>
                   <h3 className="nm-h3" {...at(`items[${i}].title`)}>{c.title}</h3>
                   <p {...at(`items[${i}].text`)}>{c.text}</p>
+                  {edit && <ItemX field="items" index={i} title="Kaart verwijderen" />}
                 </div>
               ))}
             </div>
-            <Buttons data={data} at={at} />
+            {edit && (
+              <div className="eb-oprow">
+                <AddItem
+                  field="items"
+                  def={{ icon: "shield", title: "Nieuwe kaart", text: "Korte tekst over deze dienst of dit punt." }}
+                  label="Kaart"
+                />
+                <button type="button" className="eb-op eb-additem" data-op="set-columns" data-value={three ? "2" : "3"}>
+                  Wissel naar {three ? "2" : "3"} kolommen
+                </button>
+              </div>
+            )}
+            <Buttons data={data} at={at} edit={edit} />
           </div>
         </section>
       );
@@ -212,17 +258,25 @@ export async function RenderBlock({
                 {(str(data.eyebrow) || edit) && <span className="nm-ey" {...at("eyebrow")}>{str(data.eyebrow)}</span>}
                 {(str(data.title) || edit) && <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>}
                 <Paragraphs body={str(data.body)} field="body" at={at} className="nm-p" />
-                {img && checklist.length > 0 && <Check items={checklist} field="checklist" at={at} />}
-                <Buttons data={data} at={at} />
+                {img && (checklist.length > 0 || edit) && <Check items={checklist} field="checklist" at={at} edit={edit} />}
+                <Buttons data={data} at={at} edit={edit} />
               </div>
               <div className="nm-figside">
                 {img ? (
-                  <div className="nm-fig">
+                  <div className="nm-fig eb-rel">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img} alt={str(data.imageAlt)} />
+                    {edit && <ImageOps field="image" hasImage />}
                   </div>
-                ) : checklist.length > 0 ? (
-                  <Check items={checklist} field="checklist" at={at} />
+                ) : checklist.length > 0 || edit ? (
+                  <div>
+                    <Check items={checklist} field="checklist" at={at} edit={edit} />
+                    {edit && (
+                      <p style={{ marginTop: 14 }}>
+                        <ImageOps field="image" hasImage={false} />
+                      </p>
+                    )}
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -237,11 +291,18 @@ export async function RenderBlock({
           <div className="nm-wrap" style={{ textAlign: "center" }}>
             <div className="nm-rule" style={{ margin: "0 auto 22px" }}></div>
             <p className="nm-quote" style={{ maxWidth: "28ch", margin: "0 auto" }} {...at("quote")}>{str(data.quote)}</p>
-            {str(data.buttonLabel) && str(data.buttonHref) && (
+            {((str(data.buttonLabel) && str(data.buttonHref)) || edit) && (
               <div className="nm-btns" style={{ justifyContent: "center" }}>
-                <Link className="nm-btn gold" href={str(data.buttonHref)} {...at("buttonLabel")}>
-                  {str(data.buttonLabel)}
-                </Link>
+                <span className={edit ? "eb-btnwrap" : undefined}>
+                  <Link className="nm-btn gold" href={str(data.buttonHref) || "/contact"} {...at("buttonLabel")}>
+                    {str(data.buttonLabel) || (edit ? "Knoptekst" : "")}
+                  </Link>
+                  {edit && (
+                    <span className="eb-btnops">
+                      <LinkOp singleField="buttonHref" />
+                    </span>
+                  )}
+                </span>
               </div>
             )}
           </div>
@@ -255,11 +316,18 @@ export async function RenderBlock({
             <div className="nm-cta">
               <h2 className="nm-h2" {...at("title")}>{str(data.title)}</h2>
               {(str(data.text) || edit) && <p {...at("text")}>{str(data.text)}</p>}
-              {str(data.buttonLabel) && str(data.buttonHref) && (
+              {((str(data.buttonLabel) && str(data.buttonHref)) || edit) && (
                 <div className="nm-btns">
-                  <Link className="nm-btn gold" href={str(data.buttonHref)} {...at("buttonLabel")}>
-                    {str(data.buttonLabel)}
-                  </Link>
+                  <span className={edit ? "eb-btnwrap" : undefined}>
+                    <Link className="nm-btn gold" href={str(data.buttonHref) || "/contact"} {...at("buttonLabel")}>
+                      {str(data.buttonLabel) || (edit ? "Knoptekst" : "")}
+                    </Link>
+                    {edit && (
+                      <span className="eb-btnops">
+                        <LinkOp singleField="buttonHref" />
+                      </span>
+                    )}
+                  </span>
                 </div>
               )}
             </div>
@@ -282,8 +350,8 @@ export async function RenderBlock({
             {(str(data.lead) || edit) && <p className="nm-lead" {...at("lead")}>{str(data.lead)}</p>}
             <div className="nm-team">
               {members.map((m) => (
-                <div className="nm-tm" key={m.id}>
-                  <div className="nm-mono">
+                <div className="nm-tm eb-rel" key={m.id}>
+                  <div className="nm-mono eb-rel">
                     {m.photoUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={m.photoUrl} alt={m.name} />
@@ -294,6 +362,11 @@ export async function RenderBlock({
                         .map((w) => w[0])
                         .slice(0, 2)
                         .join("")
+                    )}
+                    {edit && (
+                      <button type="button" className="eb-op eb-fotoop" data-op="member-photo" data-member={m.id}>
+                        Foto
+                      </button>
                     )}
                   </div>
                   <div>
@@ -306,9 +379,8 @@ export async function RenderBlock({
             </div>
             {edit && (
               <p className="nm-note" style={{ marginTop: 18 }}>
-                Medewerkers toevoegen/verwijderen of een foto instellen doe je onder{" "}
-                <Link href="/admin/team" style={{ fontWeight: 600, textDecoration: "underline" }}>Beheer → Team</Link>;
-                de teksten hierboven kun je direct aanklikken en bewerken.
+                Teksten en foto&apos;s bewerk je hier direct. Medewerkers toevoegen, verwijderen of herordenen doe je
+                onder <Link href="/admin/team" style={{ fontWeight: 600, textDecoration: "underline" }}>Beheer → Team</Link>.
               </p>
             )}
           </div>
@@ -427,22 +499,21 @@ export async function RenderBlock({
 
     case "image": {
       const img = str(data.image);
-      if (!img) {
-        return edit ? (
-          <section className="nm-sec">
-            <div className="nm-wrap">
-              <p className="nm-note">Afbeeldingsblok zonder afbeelding: kies er een via de knop Bewerk.</p>
-            </div>
-          </section>
-        ) : null;
-      }
+      if (!img && !edit) return null;
       return (
         <section className={secClass(data)}>
           <div className="nm-wrap">
-            <div className="nm-fig">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img} alt={str(data.alt)} />
-            </div>
+            {img ? (
+              <div className="nm-fig eb-rel">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img} alt={str(data.alt)} />
+                {edit && <ImageOps field="image" hasImage />}
+              </div>
+            ) : (
+              <div className="eb-imgleeg">
+                <ImageOps field="image" hasImage={false} />
+              </div>
+            )}
             {(str(data.caption) || edit) && <p className="nm-caption" {...at("caption")}>{str(data.caption)}</p>}
           </div>
         </section>

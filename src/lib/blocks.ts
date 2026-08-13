@@ -205,6 +205,57 @@ export const BLOCK_TYPES: Record<string, BlockTypeDef> = {
 
 export type BlockData = Record<string, unknown>;
 
+// Startinhoud voor een vers blok, zodat het direct zichtbaar en op de
+// pagina zelf aanklikbaar/bewerkbaar is.
+export const DEFAULT_BLOCK_DATA: Record<string, BlockData> = {
+  hero: {
+    eyebrow: "Bovenregel",
+    title: "Nieuwe kop",
+    text: "Introtekst: klik om te bewerken.",
+    buttons: [{ label: "Neem contact op", href: "/contact", style: "gold" }],
+    asideTitle: "Zijpaneel",
+    asideSub: "Subregel",
+    facts: [{ icon: "shield", title: "Nieuw punt", text: "Korte toelichting" }],
+  },
+  pagehead: { eyebrow: "Bovenregel", title: "Nieuwe pagina", text: "Introtekst: klik om te bewerken." },
+  text: { title: "Nieuwe kop", body: "Nieuwe tekst: klik om te bewerken.\n\nEen lege regel begint een nieuwe alinea." },
+  cards: {
+    title: "Nieuwe kop",
+    lead: "Introtekst: klik om te bewerken.",
+    columns: "3",
+    items: [
+      { icon: "shield", title: "Eerste kaart", text: "Korte tekst over dit punt." },
+      { icon: "chart", title: "Tweede kaart", text: "Korte tekst over dit punt." },
+      { icon: "users", title: "Derde kaart", text: "Korte tekst over dit punt." },
+    ],
+  },
+  split: {
+    title: "Nieuwe kop",
+    body: "Nieuwe tekst: klik om te bewerken.",
+    checklist: [
+      { title: "Eerste punt.", text: "Korte toelichting." },
+      { title: "Tweede punt.", text: "Korte toelichting." },
+    ],
+  },
+  band: { quote: "Een korte, krachtige uitspraak.", buttonLabel: "Neem contact op", buttonHref: "/contact" },
+  cta: {
+    title: "Nieuwe kop",
+    text: "Korte uitnodigende tekst.",
+    buttonLabel: "Neem contact op",
+    buttonHref: "/contact",
+  },
+  team: { eyebrow: "Ons team", title: "De mensen achter het kantoor" },
+  blog: { eyebrow: "Actueel", title: "Nieuws en tips" },
+  contactInfo: {},
+  contactForm: {
+    eyebrow: "Stuur een bericht",
+    title: "We horen graag van je",
+    text: "Laat je gegevens achter, dan nemen we snel contact op.",
+  },
+  image: {},
+  html: { html: "<p>Eigen HTML: bewerk dit via de HTML-knop in de blokbalk.</p>" },
+};
+
 export function blockSummary(type: string, data: BlockData): string {
   const def = BLOCK_TYPES[type];
   const title = (data.title as string) || (data.quote as string) || "";

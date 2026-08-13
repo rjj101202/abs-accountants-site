@@ -7,7 +7,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { db, pages, blocks, teamMembers, blogPosts, settings, messages } from "@/db";
 import { requireAdmin, checkPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
-import { BLOCK_TYPES } from "@/lib/blocks";
+import { BLOCK_TYPES, DEFAULT_BLOCK_DATA } from "@/lib/blocks";
 
 function bust() {
   // Alle publieke pagina's zijn dynamisch; dit ruimt eventuele router-cache op.
@@ -167,9 +167,15 @@ export async function createBlock(formData: FormData) {
       .where(eq(blocks.pageId, pageId));
     sort = (max[0]?.m ?? 0) + 1;
   }
-  const [row] = await db.insert(blocks).values({ pageId, type, data: {}, sort }).returning();
+  const [row] = await db
+    .insert(blocks)
+    .values({ pageId, type, data: DEFAULT_BLOCK_DATA[type] ?? {}, sort })
+    .returning();
   bust();
-  redirect(returnTo ? `${returnTo}?bewerken=1&blok=${row.id}` : `/admin/paginas/${pageId}/blok/${row.id}`);
+  // Alleen het vrije HTML-blok heeft het formulier-paneel nodig; alle andere
+  // blokken zijn direct op de pagina zelf te bewerken.
+  const panel = type === "html" ? `&blok=${row.id}` : "";
+  redirect(returnTo ? `${returnTo}?bewerken=1${panel}` : `/admin/paginas/${pageId}/blok/${row.id}`);
 }
 
 export async function saveBlock(pageId: number, blockId: number, data: Record<string, unknown>) {
@@ -212,7 +218,7 @@ export async function moveBlock(formData: FormData) {
 
 // ---------- inline bewerken op de site zelf ----------
 
-const MEMBER_FIELDS = new Set(["name", "role", "bio"]);
+const MEMBER_FIELDS = new Set(["name", "role", "bio", "photoUrl"]);
 
 export type InlineEdits = {
   blocks: { id: number; pageId: number; data: Record<string, unknown> }[];

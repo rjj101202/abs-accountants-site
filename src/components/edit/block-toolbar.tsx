@@ -3,12 +3,16 @@ import { moveBlock, toggleBlock, deleteBlock, createBlock } from "@/app/admin/ac
 import { BLOCK_TYPES } from "@/lib/blocks";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 
+// Bloktypes met een instelbare witte/beige achtergrond.
+const ALT_TYPES = new Set(["text", "cards", "split", "cta", "team", "blog", "contactInfo", "contactForm", "image"]);
+
 // Zwevende knoppenbalk per blok, alleen zichtbaar in bewerkmodus op de site.
 export function BlockToolbar({
   blockId,
   pageId,
   path,
   label,
+  type,
   visible,
   first,
   last,
@@ -17,6 +21,7 @@ export function BlockToolbar({
   pageId: number;
   path: string;
   label: string;
+  type: string;
   visible: boolean;
   first: boolean;
   last: boolean;
@@ -34,22 +39,29 @@ export function BlockToolbar({
       <form action={moveBlock}>
         {hidden}
         <input type="hidden" name="dir" value="up" />
-        <button className="eb-btn" disabled={first} title="Omhoog" type="submit">↑</button>
+        <button className="eb-btn" disabled={first} title="Omhoog verplaatsen" type="submit">↑</button>
       </form>
       <form action={moveBlock}>
         {hidden}
         <input type="hidden" name="dir" value="down" />
-        <button className="eb-btn" disabled={last} title="Omlaag" type="submit">↓</button>
+        <button className="eb-btn" disabled={last} title="Omlaag verplaatsen" type="submit">↓</button>
       </form>
+      {ALT_TYPES.has(type) && (
+        <button className="eb-btn eb-txt" type="button" data-op="toggle-alt" title="Wissel tussen witte en beige achtergrond">
+          Achtergrond
+        </button>
+      )}
       <form action={toggleBlock}>
         {hidden}
-        <button className="eb-btn eb-txt" type="submit">
+        <button className="eb-btn eb-txt" type="submit" title="Voor bezoekers verbergen of tonen">
           {visible ? "Verberg" : "Toon"}
         </button>
       </form>
-      <Link className="eb-btn eb-txt" title="Alles bewerken (afbeeldingen, iconen, knoppen)" href={`${path}?bewerken=1&blok=${blockId}`}>
-        Bewerk
-      </Link>
+      {type === "html" && (
+        <Link className="eb-btn eb-txt" title="HTML bewerken" href={`${path}?bewerken=1&blok=${blockId}`}>
+          HTML
+        </Link>
+      )}
       <form action={deleteBlock}>
         {hidden}
         <ConfirmButton className="eb-btn eb-del" message="Dit blok definitief verwijderen?">✕</ConfirmButton>
