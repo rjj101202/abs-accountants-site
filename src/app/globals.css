@@ -160,8 +160,14 @@ a{color:inherit;text-decoration:none}
 .eb-add select{border:1px solid #cfd3da;border-radius:6px;padding:5px 8px;font-size:.82rem;background:#fff;max-width:280px}
 .eb-add button{border:0;background:var(--navy);color:#fff;border-radius:6px;padding:6px 12px;font-size:.82rem;font-weight:700;cursor:pointer}
 .eb-add button:hover{background:var(--navy-d)}
-.eb-fab{position:fixed;left:16px;right:16px;bottom:16px;z-index:40;display:block;text-align:center;background:#e07b1f;color:#fff;font-weight:700;padding:15px 20px;border-radius:12px;box-shadow:0 12px 32px rgba(15,40,70,.4);font-size:1rem}
-.eb-fab:hover{background:#c96a12}
+.eb-adminbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(15,40,70,.97);backdrop-filter:blur(6px);color:#c3d0e0;padding:0 18px;height:46px;font-size:.86rem;border-top:1px solid rgba(255,255,255,.14);box-shadow:0 -8px 28px rgba(15,40,70,.25)}
+.eb-adminbar-status{display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap;overflow:hidden}
+.eb-dot{width:8px;height:8px;border-radius:50%;background:#4cba6b;flex:none}
+.eb-adminbar-actions{display:flex;align-items:center;gap:8px}
+.eb-adminbar-link{color:#c3d0e0;font-weight:600;padding:7px 12px;border-radius:7px;white-space:nowrap}
+.eb-adminbar-link:hover{color:#fff;background:rgba(255,255,255,.1)}
+.eb-adminbar-cta{background:#e07b1f;color:#fff;font-weight:700;padding:7px 16px;border-radius:7px;white-space:nowrap}
+.eb-adminbar-cta:hover{background:#c96a12}
 .adm-side .adm-editsite{display:block;margin:0 16px 16px;text-align:center;background:#e07b1f;color:#fff;font-weight:700;border-radius:9px;padding:11px 14px;border-left:0}
 .adm-side .adm-editsite:hover{background:#c96a12;color:#fff}
 .eb-savebar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:45;display:flex;gap:10px;align-items:center;background:#0f2846;color:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 14px 40px rgba(15,40,70,.45);max-width:min(94vw,760px)}

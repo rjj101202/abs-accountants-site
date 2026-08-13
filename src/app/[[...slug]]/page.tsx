@@ -7,6 +7,7 @@ import { isAdmin } from "@/lib/auth";
 import { SiteHeader, SiteFooter } from "@/components/chrome";
 import { RenderBlock } from "@/components/render-blocks";
 import { BlockToolbar, AddBlockButton } from "@/components/edit/block-toolbar";
+import { AdminBar } from "@/components/edit/admin-bar";
 import { EditMode } from "@/components/edit/edit-mode";
 import { BlockForm } from "@/components/admin/block-form";
 import { BLOCK_TYPES, blockSummary } from "@/lib/blocks";
@@ -114,9 +115,7 @@ export default async function Page({ params, searchParams }: Props) {
           )}
         </main>
         <SiteFooter />
-        {admin && !edit && (
-          <a className="eb-fab" href={`${path}?bewerken=1`}>Site bewerken</a>
-        )}
+        {admin && !edit && <AdminBar editHref={`${path}?bewerken=1`} editLabel="Site bewerken" />}
         {edit && <EditMode path={path} save={saveInlineEdits} />}
         {overlayBlock && (
           <div className="eb-overlay">
@@ -190,9 +189,7 @@ export default async function Page({ params, searchParams }: Props) {
             </section>
           </main>
           <SiteFooter />
-          {admin && (
-            <a className="eb-fab" href={`/admin/blog/${post.id}`}>Bericht bewerken</a>
-          )}
+          {admin && <AdminBar editHref={`/admin/blog/${post.id}`} editLabel="Bericht bewerken" />}
         </>
       );
     }
