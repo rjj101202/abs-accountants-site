@@ -2,16 +2,17 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { publishAllNow, discardDraftsNow, type InlineEdits } from "@/app/admin/actions";
-import { ICON_OPTIONS } from "@/lib/blocks";
+import { publishAllNow, discardDraftsNow, changeBlockTypeNow, type InlineEdits } from "@/app/admin/actions";
+import { ICON_OPTIONS, BLOCK_TYPES } from "@/lib/blocks";
 import { Icon } from "@/components/icons";
 
 type Data = Record<string, unknown>;
 type BlockEdit = { id: number; pageId: number; data: Data };
 
-// Popover-context voor icoonkiezer en link-editor.
+// Popover-context voor icoonkiezer, link-editor en vormgeving-kiezer.
 type Popover =
   | { kind: "icon"; wrap: HTMLElement; field: string; index: number; x: number; y: number }
+  | { kind: "type"; wrap: HTMLElement; x: number; y: number }
   | {
       kind: "link";
       wrap: HTMLElement;
@@ -138,6 +139,11 @@ export function EditMode({
         case "pick-icon": {
           const r = btn.getBoundingClientRect();
           setPopover({ kind: "icon", wrap, field, index, x: r.left, y: r.bottom + 6 });
+          break;
+        }
+        case "change-type": {
+          const r = btn.getBoundingClientRect();
+          setPopover({ kind: "type", wrap, x: Math.max(12, r.right - 300), y: r.bottom + 6 });
           break;
         }
         case "edit-link": {
@@ -347,7 +353,46 @@ export function EditMode({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {popover.kind === "icon" ? (
+            {popover.kind === "type" ? (
+              <>
+                <b>Vormgeving van dit blok</b>
+                <div className="eb-typelist">
+                  {Object.entries(BLOCK_TYPES)
+                    .filter(([key]) => key !== "html")
+                    .map(([key, def]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          const wrap = popover.wrap;
+                          startTransition(async () => {
+                            // Eventuele tekstwijzigingen in dit blok eerst bewaren.
+                            if (dirtyBlocks.current.size + dirtyMembers.current.size > 0) {
+                              await save({
+                                blocks: Array.from(dirtyBlocks.current).map(collectBlock),
+                                members: collectMembers(),
+                              });
+                              dirtyBlocks.current.clear();
+                              dirtyMembers.current.clear();
+                              setDirty(0);
+                            }
+                            await changeBlockTypeNow(
+                              Number(wrap.getAttribute("data-page-id")),
+                              Number(wrap.getAttribute("data-block-id")),
+                              key,
+                            );
+                            setPopover(null);
+                            router.refresh();
+                          });
+                        }}
+                      >
+                        <b>{def.label}</b>
+                        <span>{def.description}</span>
+                      </button>
+                    ))}
+                </div>
+              </>
+            ) : popover.kind === "icon" ? (
               <>
                 <b>Kies een icoon</b>
                 <div className="eb-icongrid">

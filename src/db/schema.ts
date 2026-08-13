@@ -34,6 +34,7 @@ export const blocks = pgTable("blocks", {
   draftData: jsonb("draft_data"),
   draftSort: integer("draft_sort"),
   draftVisible: boolean("draft_visible"),
+  draftType: text("draft_type"),
   draftDeleted: boolean("draft_deleted").notNull().default(false),
   // Nieuw aangemaakt en nog nooit gepubliceerd: alleen zichtbaar in concept.
   isNew: boolean("is_new").notNull().default(false),

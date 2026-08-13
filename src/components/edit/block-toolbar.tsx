@@ -46,6 +46,9 @@ export function BlockToolbar({
         <input type="hidden" name="dir" value="down" />
         <button className="eb-btn" disabled={last} title="Omlaag verplaatsen" type="submit">↓</button>
       </form>
+      <button className="eb-btn eb-txt" type="button" data-op="change-type" title="Dit blok omzetten naar een andere vormgeving">
+        Vormgeving
+      </button>
       {ALT_TYPES.has(type) && (
         <button className="eb-btn eb-txt" type="button" data-op="toggle-alt" title="Wissel tussen witte en beige achtergrond">
           Achtergrond
@@ -64,7 +67,9 @@ export function BlockToolbar({
       )}
       <form action={deleteBlock}>
         {hidden}
-        <ConfirmButton className="eb-btn eb-del" message="Dit blok definitief verwijderen?">✕</ConfirmButton>
+        <ConfirmButton className="eb-btn eb-txt eb-del" message="Dit hele blok verwijderen? (Definitief zodra je publiceert.)">
+          Verwijder
+        </ConfirmButton>
       </form>
     </div>
   );

@@ -261,3 +261,62 @@ export function blockSummary(type: string, data: BlockData): string {
   const title = (data.title as string) || (data.quote as string) || "";
   return `${def?.label ?? type}${title ? ` — ${title.slice(0, 60)}` : ""}`;
 }
+
+// Zet blokdata om naar een ander bloktype: gedeelde velden gaan mee,
+// verwante velden worden vertaald, de rest komt uit de standaardinhoud.
+export function convertBlockData(from: BlockData, toType: string): BlockData {
+  const target = BLOCK_TYPES[toType];
+  const out: BlockData = { ...(DEFAULT_BLOCK_DATA[toType] ?? {}) };
+  if (!target) return out;
+  const targetKeys = new Set(target.fields.map((f) => f.key));
+
+  // 1) Zelfde veldnaam: rechtstreeks overnemen.
+  for (const key of targetKeys) {
+    if (from[key] !== undefined && from[key] !== "") out[key] = from[key];
+  }
+
+  // 2) Verwante tekstvelden vertalen.
+  const firstText = (keys: string[]) => {
+    for (const k of keys) {
+      const v = from[k];
+      if (typeof v === "string" && v.trim()) return v;
+    }
+    return undefined;
+  };
+  if (targetKeys.has("body") && out.body === (DEFAULT_BLOCK_DATA[toType] ?? {}).body) {
+    const t = firstText(["body", "text", "lead"]);
+    if (t) out.body = t;
+  }
+  if (targetKeys.has("text") && out.text === (DEFAULT_BLOCK_DATA[toType] ?? {}).text) {
+    const t = firstText(["text", "lead", "body"]);
+    if (t) out.text = t;
+  }
+  if (targetKeys.has("lead") && out.lead === (DEFAULT_BLOCK_DATA[toType] ?? {}).lead) {
+    const t = firstText(["lead", "text", "body"]);
+    if (t) out.lead = t;
+  }
+  if (targetKeys.has("quote") && out.quote === (DEFAULT_BLOCK_DATA[toType] ?? {}).quote) {
+    const t = firstText(["quote", "title", "text"]);
+    if (t) out.quote = t;
+  }
+  if (targetKeys.has("title") && out.title === (DEFAULT_BLOCK_DATA[toType] ?? {}).title) {
+    const t = firstText(["title", "quote"]);
+    if (t) out.title = t;
+  }
+
+  // 3) Lijsten met dezelfde vorm (icon/title/text) over en weer.
+  const firstList = (keys: string[]) => {
+    for (const k of keys) {
+      const v = from[k];
+      if (Array.isArray(v) && v.length > 0) return v;
+    }
+    return undefined;
+  };
+  for (const listKey of ["items", "facts", "checklist"] as const) {
+    if (targetKeys.has(listKey)) {
+      const l = firstList([listKey, "items", "facts", "checklist"]);
+      if (l) out[listKey] = l;
+    }
+  }
+  return out;
+}

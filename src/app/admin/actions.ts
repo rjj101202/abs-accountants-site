@@ -7,7 +7,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { db, pages, blocks, teamMembers, blogPosts, settings, messages } from "@/db";
 import { requireAdmin, checkPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
-import { BLOCK_TYPES, DEFAULT_BLOCK_DATA } from "@/lib/blocks";
+import { BLOCK_TYPES, DEFAULT_BLOCK_DATA, convertBlockData } from "@/lib/blocks";
 import { blockHasDraft } from "@/lib/drafts";
 
 function bust() {
@@ -270,9 +270,11 @@ async function doPublish() {
           data: (b.draftData ?? b.data) as Record<string, unknown>,
           sort: b.draftSort ?? b.sort,
           visible: b.draftVisible ?? b.visible,
+          type: b.draftType ?? b.type,
           draftData: null,
           draftSort: null,
           draftVisible: null,
+          draftType: null,
           isNew: false,
         })
         .where(eq(blocks.id, b.id));
@@ -284,8 +286,10 @@ async function doDiscard() {
   await db.delete(blocks).where(eq(blocks.isNew, true));
   await db
     .update(blocks)
-    .set({ draftData: null, draftSort: null, draftVisible: null, draftDeleted: false })
-    .where(sql`${blocks.draftData} is not null or ${blocks.draftSort} is not null or ${blocks.draftVisible} is not null or ${blocks.draftDeleted}`);
+    .set({ draftData: null, draftSort: null, draftVisible: null, draftType: null, draftDeleted: false })
+    .where(
+      sql`${blocks.draftData} is not null or ${blocks.draftSort} is not null or ${blocks.draftVisible} is not null or ${blocks.draftType} is not null or ${blocks.draftDeleted}`,
+    );
 }
 
 // Formulier-variant (beheerbalk/voorvertoning) met redirect terug naar de site.
@@ -307,6 +311,28 @@ export async function publishAllNow() {
 export async function discardDraftsNow() {
   await requireAdmin();
   await doDiscard();
+  bust();
+}
+
+// Blok omzetten naar een andere vormgeving (bloktype); inhoud verhuist mee.
+// Gaat als concept: bezoekers zien de oude vormgeving tot er gepubliceerd wordt.
+export async function changeBlockTypeNow(pageId: number, blockId: number, newType: string) {
+  await requireAdmin();
+  if (!BLOCK_TYPES[newType]) return;
+  const row = (
+    await db
+      .select()
+      .from(blocks)
+      .where(and(eq(blocks.id, blockId), eq(blocks.pageId, pageId)))
+  )[0];
+  if (!row) return;
+  const effType = row.draftType ?? row.type;
+  if (effType === newType) return;
+  const effData = (row.draftData ?? row.data) as Record<string, unknown>;
+  await db
+    .update(blocks)
+    .set({ draftType: newType, draftData: convertBlockData(effData, newType) })
+    .where(eq(blocks.id, blockId));
   bust();
 }
 
