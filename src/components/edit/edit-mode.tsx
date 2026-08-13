@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { InlineEdits } from "@/app/admin/actions";
+import { publishAllNow, discardDraftsNow, type InlineEdits } from "@/app/admin/actions";
 import { ICON_OPTIONS } from "@/lib/blocks";
 import { Icon } from "@/components/icons";
 
@@ -30,9 +30,11 @@ type Popover =
 export function EditMode({
   path,
   save,
+  pending: pendingDrafts,
 }: {
   path: string;
   save: (edits: InlineEdits) => Promise<void>;
+  pending: number;
 }) {
   const [dirty, setDirty] = useState(0);
   const dirtyBlocks = useRef(new Set<HTMLElement>());
@@ -260,16 +262,55 @@ export function EditMode({
     });
   }
 
+  // Publiceren vanuit de bewerkmodus: eerst openstaande tekstwijzigingen als
+  // concept opslaan, daarna alles live zetten.
+  function onPublish() {
+    if (!window.confirm("Alles publiceren? Bezoekers zien de wijzigingen daarna direct.")) return;
+    startTransition(async () => {
+      if (dirtyBlocks.current.size + dirtyMembers.current.size > 0) {
+        await save({ blocks: Array.from(dirtyBlocks.current).map(collectBlock), members: collectMembers() });
+        dirtyBlocks.current.clear();
+        dirtyMembers.current.clear();
+      }
+      await publishAllNow();
+      setDirty(0);
+      setSavedFlash(false);
+      router.refresh();
+    });
+  }
+
+  function onDiscard() {
+    if (!window.confirm("Alle conceptwijzigingen verwerpen en terug naar de gepubliceerde versie?")) return;
+    startTransition(async () => {
+      await discardDraftsNow();
+      dirtyBlocks.current.clear();
+      dirtyMembers.current.clear();
+      setDirty(0);
+      router.refresh();
+    });
+  }
+
+  const hasWork = pendingDrafts > 0 || dirty > 0;
+
   return (
     <>
       <div className="eb-savebar">
         <span className="eb-hint">
-          Bewerkmodus: klik op teksten om te typen, op iconen of foto&apos;s om ze te wisselen, en gebruik de knopjes
-          om onderdelen toe te voegen of te verwijderen.
+          {hasWork
+            ? `Concept: ${pendingDrafts + dirty} ${pendingDrafts + dirty === 1 ? "wijziging" : "wijzigingen"}, nog niet zichtbaar voor bezoekers.`
+            : "Bewerkmodus: klik op teksten om te typen, op iconen of foto's om ze te wisselen."}
         </span>
-        <button className="eb-save" onClick={onSave} disabled={pending || dirty === 0} type="button">
-          {pending ? "Opslaan…" : dirty > 0 ? `Opslaan (${dirty})` : savedFlash ? "Opgeslagen ✓" : "Opslaan"}
+        <button className="eb-savesec" onClick={onSave} disabled={pending || dirty === 0} type="button">
+          {pending ? "Bezig…" : dirty > 0 ? `Concept opslaan (${dirty})` : savedFlash ? "Concept opgeslagen ✓" : "Concept opslaan"}
         </button>
+        <button className="eb-save" onClick={onPublish} disabled={pending || !hasWork} type="button">
+          Publiceer
+        </button>
+        {pendingDrafts > 0 && (
+          <button className="eb-discard" onClick={onDiscard} disabled={pending} type="button" title="Concept weggooien, terug naar de live versie">
+            Verwerp
+          </button>
+        )}
         <a
           className="eb-done"
           href={path}

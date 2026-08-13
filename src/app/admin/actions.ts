@@ -8,6 +8,7 @@ import { del } from "@vercel/blob";
 import { db, pages, blocks, teamMembers, blogPosts, settings, messages } from "@/db";
 import { requireAdmin, checkPassword, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
 import { BLOCK_TYPES, DEFAULT_BLOCK_DATA } from "@/lib/blocks";
+import { blockHasDraft } from "@/lib/drafts";
 
 function bust() {
   // Alle publieke pagina's zijn dynamisch; dit ruimt eventuele router-cache op.
@@ -153,23 +154,29 @@ export async function createBlock(formData: FormData) {
   const afterSortRaw = formData.get("afterSort");
   let sort: number;
   if (afterSortRaw !== null && afterSortRaw !== "") {
-    // Invoegen direct ná een bestaand blok: schuif alles erachter één op.
+    // Invoegen direct ná een bestaand blok: schuif alles erachter één op
+    // (zowel de gepubliceerde als de concept-volgorde).
     const afterSort = Number(afterSortRaw);
     await db
       .update(blocks)
       .set({ sort: sql`${blocks.sort} + 1` })
       .where(and(eq(blocks.pageId, pageId), sql`${blocks.sort} > ${afterSort}`));
+    await db
+      .update(blocks)
+      .set({ draftSort: sql`${blocks.draftSort} + 1` })
+      .where(and(eq(blocks.pageId, pageId), sql`${blocks.draftSort} is not null and ${blocks.draftSort} > ${afterSort}`));
     sort = afterSort + 1;
   } else {
     const max = await db
-      .select({ m: sql<number>`coalesce(max(${blocks.sort}),0)` })
+      .select({ m: sql<number>`coalesce(max(greatest(${blocks.sort}, coalesce(${blocks.draftSort}, 0))),0)` })
       .from(blocks)
       .where(eq(blocks.pageId, pageId));
     sort = (max[0]?.m ?? 0) + 1;
   }
+  // Nieuw blok is concept (isNew): bezoekers zien het pas na publicatie.
   const [row] = await db
     .insert(blocks)
-    .values({ pageId, type, data: DEFAULT_BLOCK_DATA[type] ?? {}, sort })
+    .values({ pageId, type, data: DEFAULT_BLOCK_DATA[type] ?? {}, sort, isNew: true })
     .returning();
   bust();
   // Alleen het vrije HTML-blok heeft het formulier-paneel nodig; alle andere
@@ -178,9 +185,14 @@ export async function createBlock(formData: FormData) {
   redirect(returnTo ? `${returnTo}?bewerken=1${panel}` : `/admin/paginas/${pageId}/blok/${row.id}`);
 }
 
+// Contentwijzigingen gaan altijd naar het concept (draftData); bezoekers
+// blijven de gepubliceerde data zien tot er gepubliceerd wordt.
 export async function saveBlock(pageId: number, blockId: number, data: Record<string, unknown>) {
   await requireAdmin();
-  await db.update(blocks).set({ data }).where(and(eq(blocks.id, blockId), eq(blocks.pageId, pageId)));
+  await db
+    .update(blocks)
+    .set({ draftData: data })
+    .where(and(eq(blocks.id, blockId), eq(blocks.pageId, pageId)));
   bust();
 }
 
@@ -189,7 +201,14 @@ export async function deleteBlock(formData: FormData) {
   const id = Number(formData.get("id"));
   const pageId = Number(formData.get("pageId"));
   const returnTo = editReturn(formData);
-  await db.delete(blocks).where(eq(blocks.id, id));
+  const row = (await db.select().from(blocks).where(eq(blocks.id, id)))[0];
+  if (row?.isNew) {
+    // Nog nooit gepubliceerd: mag direct weg.
+    await db.delete(blocks).where(eq(blocks.id, id));
+  } else if (row) {
+    // Gepubliceerd blok: markeren; verdwijnt voor bezoekers pas bij publicatie.
+    await db.update(blocks).set({ draftDeleted: true }).where(eq(blocks.id, id));
+  }
   bust();
   redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
 }
@@ -200,7 +219,10 @@ export async function toggleBlock(formData: FormData) {
   const pageId = Number(formData.get("pageId"));
   const returnTo = editReturn(formData);
   const row = (await db.select().from(blocks).where(eq(blocks.id, id)))[0];
-  if (row) await db.update(blocks).set({ visible: !row.visible }).where(eq(blocks.id, id));
+  if (row) {
+    const effective = row.draftVisible ?? row.visible;
+    await db.update(blocks).set({ draftVisible: !effective }).where(eq(blocks.id, id));
+  }
   bust();
   redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
 }
@@ -211,9 +233,81 @@ export async function moveBlock(formData: FormData) {
   const pageId = Number(formData.get("pageId"));
   const dir = String(formData.get("dir"));
   const returnTo = editReturn(formData);
-  await swapSort(blocks, id, dir === "up", { pageId });
+  // Wissel op basis van de concept-volgorde; het resultaat komt in draftSort.
+  const rows = (await db.select().from(blocks).where(eq(blocks.pageId, pageId)))
+    .filter((b) => !b.draftDeleted)
+    .map((b) => ({ id: b.id, eff: b.draftSort ?? b.sort }))
+    .sort((a, b) => a.eff - b.eff || a.id - b.id);
+  const idx = rows.findIndex((r) => r.id === id);
+  const other = dir === "up" ? rows[idx - 1] : rows[idx + 1];
+  if (idx >= 0 && other) {
+    const cur = rows[idx];
+    if (cur.eff === other.eff) {
+      // Gelijke volgordes eerst hernummeren in het concept.
+      for (let i = 0; i < rows.length; i++) {
+        await db.update(blocks).set({ draftSort: i + 1 }).where(eq(blocks.id, rows[i].id));
+        rows[i].eff = i + 1;
+      }
+    }
+    await db.update(blocks).set({ draftSort: other.eff }).where(eq(blocks.id, cur.id));
+    await db.update(blocks).set({ draftSort: cur.eff }).where(eq(blocks.id, other.id));
+  }
   bust();
   redirect(returnTo ? `${returnTo}?bewerken=1` : `/admin/paginas/${pageId}`);
+}
+
+// ---------- publiceren / verwerpen ----------
+
+async function doPublish() {
+  const rows = await db.select().from(blocks);
+  for (const b of rows) {
+    if (b.draftDeleted) {
+      await db.delete(blocks).where(eq(blocks.id, b.id));
+    } else if (blockHasDraft(b)) {
+      await db
+        .update(blocks)
+        .set({
+          data: (b.draftData ?? b.data) as Record<string, unknown>,
+          sort: b.draftSort ?? b.sort,
+          visible: b.draftVisible ?? b.visible,
+          draftData: null,
+          draftSort: null,
+          draftVisible: null,
+          isNew: false,
+        })
+        .where(eq(blocks.id, b.id));
+    }
+  }
+}
+
+async function doDiscard() {
+  await db.delete(blocks).where(eq(blocks.isNew, true));
+  await db
+    .update(blocks)
+    .set({ draftData: null, draftSort: null, draftVisible: null, draftDeleted: false })
+    .where(sql`${blocks.draftData} is not null or ${blocks.draftSort} is not null or ${blocks.draftVisible} is not null or ${blocks.draftDeleted}`);
+}
+
+// Formulier-variant (beheerbalk/voorvertoning) met redirect terug naar de site.
+export async function publishAll(formData: FormData) {
+  await requireAdmin();
+  const returnTo = editReturn(formData);
+  await doPublish();
+  bust();
+  redirect(returnTo ? `${returnTo}?gepubliceerd=1` : "/admin");
+}
+
+// Directe variant voor de bewerkmodus-client (eerst concept opslaan, dan dit).
+export async function publishAllNow() {
+  await requireAdmin();
+  await doPublish();
+  bust();
+}
+
+export async function discardDraftsNow() {
+  await requireAdmin();
+  await doDiscard();
+  bust();
 }
 
 // ---------- inline bewerken op de site zelf ----------
@@ -230,7 +324,7 @@ export async function saveInlineEdits(edits: InlineEdits) {
   for (const b of edits.blocks) {
     await db
       .update(blocks)
-      .set({ data: b.data })
+      .set({ draftData: b.data })
       .where(and(eq(blocks.id, b.id), eq(blocks.pageId, b.pageId)));
   }
   for (const m of edits.members) {

@@ -20,6 +20,8 @@ export const pages = pgTable("pages", {
 });
 
 // Een blok op een pagina. data-structuur hangt af van type (zie src/lib/blocks.ts).
+// data/sort/visible = de gepubliceerde staat die bezoekers zien; de draft*-
+// kolommen vormen het concept dat beheerders bewerken tot ze publiceren.
 export const blocks = pgTable("blocks", {
   id: serial("id").primaryKey(),
   pageId: integer("page_id")
@@ -29,6 +31,12 @@ export const blocks = pgTable("blocks", {
   data: jsonb("data").notNull().default({}),
   sort: integer("sort").notNull().default(0),
   visible: boolean("visible").notNull().default(true),
+  draftData: jsonb("draft_data"),
+  draftSort: integer("draft_sort"),
+  draftVisible: boolean("draft_visible"),
+  draftDeleted: boolean("draft_deleted").notNull().default(false),
+  // Nieuw aangemaakt en nog nooit gepubliceerd: alleen zichtbaar in concept.
+  isNew: boolean("is_new").notNull().default(false),
 });
 
 export const teamMembers = pgTable("team_members", {

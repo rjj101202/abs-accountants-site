@@ -176,9 +176,18 @@ a{color:inherit;text-decoration:none}
 .adm-side .adm-editsite:hover{background:#c96a12;color:#fff}
 .eb-savebar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:45;display:flex;gap:10px;align-items:center;background:#0f2846;color:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 14px 40px rgba(15,40,70,.45);max-width:min(94vw,760px)}
 .eb-hint{font-size:.82rem;color:#c3d0e0}
-.eb-save{border:0;background:var(--gold);color:#fff;font-weight:700;border-radius:8px;padding:9px 18px;cursor:pointer;font-size:.9rem;white-space:nowrap}
-.eb-save:hover{background:var(--gold-d)}
+.eb-save{border:0;background:#e07b1f;color:#fff;font-weight:700;border-radius:8px;padding:9px 18px;cursor:pointer;font-size:.9rem;white-space:nowrap}
+.eb-save:hover{background:#c96a12}
 .eb-save:disabled{opacity:.5;cursor:default}
+.eb-savesec{border:0;background:var(--gold);color:#fff;font-weight:700;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:.88rem;white-space:nowrap}
+.eb-savesec:hover{background:var(--gold-d)}
+.eb-savesec:disabled{opacity:.5;cursor:default}
+.eb-discard{border:0;background:rgba(255,255,255,.12);color:#f0b9b9;font-weight:600;border-radius:8px;padding:9px 12px;cursor:pointer;font-size:.85rem;white-space:nowrap}
+.eb-discard:hover{background:#a33333;color:#fff}
+.eb-adminbar-pub{border:0;background:#e07b1f;color:#fff;font-weight:700;padding:7px 16px;border-radius:7px;white-space:nowrap;cursor:pointer;font:inherit;font-size:.86rem}
+.eb-adminbar-pub:hover{background:#c96a12}
+.eb-dot-orange{background:#e07b1f}
+.eb-adminbar.eb-preview{background:rgba(140,74,10,.97)}
 .eb-done,.eb-admin{color:#fff;font-weight:600;font-size:.88rem;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.12);white-space:nowrap}
 .eb-done:hover,.eb-admin:hover{background:rgba(255,255,255,.25)}
 /* Op-knopjes: kleine bewerkacties direct in de blokken */

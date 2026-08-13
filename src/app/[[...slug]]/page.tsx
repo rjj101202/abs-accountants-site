@@ -7,10 +7,11 @@ import { isAdmin } from "@/lib/auth";
 import { SiteHeader, SiteFooter } from "@/components/chrome";
 import { RenderBlock } from "@/components/render-blocks";
 import { BlockToolbar, AddBlockButton } from "@/components/edit/block-toolbar";
-import { AdminBar } from "@/components/edit/admin-bar";
+import { AdminBar, PreviewBar } from "@/components/edit/admin-bar";
 import { EditMode } from "@/components/edit/edit-mode";
 import { BlockForm } from "@/components/admin/block-form";
 import { BLOCK_TYPES, blockSummary } from "@/lib/blocks";
+import { blockHasDraft, effectiveBlock } from "@/lib/drafts";
 import { saveBlock, saveInlineEdits } from "@/app/admin/actions";
 
 // Content komt uit de database en moet direct na een wijziging zichtbaar zijn.
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug?: string[] }>;
-  searchParams: Promise<{ bewerken?: string; blok?: string }>;
+  searchParams: Promise<{ bewerken?: string; blok?: string; voorvertoning?: string; gepubliceerd?: string }>;
 };
 
 async function findPage(slugPath: string) {
@@ -45,20 +46,37 @@ export async function generateMetadata({ params }: { params: Props["params"] }) 
 
 export default async function Page({ params, searchParams }: Props) {
   const { slug = [] } = await params;
-  const { bewerken, blok } = await searchParams;
+  const { bewerken, blok, voorvertoning, gepubliceerd } = await searchParams;
   const slugPath = slug.join("/");
   const path = slugPath ? `/${slugPath}` : "/";
 
   const admin = await isAdmin();
   const edit = admin && bewerken === "1";
+  const preview = admin && !edit && voorvertoning === "1";
+
+  // Hoeveel conceptwijzigingen staan er (site-breed) klaar om te publiceren?
+  const pending = admin ? (await db.select().from(blocks)).filter(blockHasDraft).length : 0;
 
   const page = await findPage(slugPath);
   if (page) {
-    const pageBlocks = await db
+    const rows = await db
       .select()
       .from(blocks)
-      .where(edit ? eq(blocks.pageId, page.id) : and(eq(blocks.pageId, page.id), eq(blocks.visible, true)))
+      .where(eq(blocks.pageId, page.id))
       .orderBy(asc(blocks.sort), asc(blocks.id));
+
+    // Drie standen: bezoekers zien de gepubliceerde staat; bewerken en
+    // voorvertoning tonen het concept (draft-waarden waar aanwezig).
+    let pageBlocks;
+    if (edit || preview) {
+      pageBlocks = rows
+        .filter((b) => !b.draftDeleted)
+        .map(effectiveBlock)
+        .sort((a, b) => a.sort - b.sort || a.id - b.id);
+      if (preview) pageBlocks = pageBlocks.filter((b) => b.visible);
+    } else {
+      pageBlocks = rows.filter((b) => !b.isNew && b.visible);
+    }
 
     // Bewerk-paneel: volledig blokformulier als overlay op de site zelf.
     const overlayBlock = edit && blok ? pageBlocks.find((b) => b.id === Number(blok)) : undefined;
@@ -116,8 +134,17 @@ export default async function Page({ params, searchParams }: Props) {
           )}
         </main>
         <SiteFooter />
-        {admin && !edit && <AdminBar editHref={`${path}?bewerken=1`} editLabel="Site bewerken" />}
-        {edit && <EditMode path={path} save={saveInlineEdits} />}
+        {preview && <PreviewBar path={path} pending={pending} />}
+        {admin && !edit && !preview && (
+          <AdminBar
+            path={path}
+            editHref={`${path}?bewerken=1`}
+            editLabel="Site bewerken"
+            pending={pending}
+            published={gepubliceerd === "1"}
+          />
+        )}
+        {edit && <EditMode path={path} save={saveInlineEdits} pending={pending} />}
         {overlayBlock && (
           <div className="eb-overlay">
             <div className="eb-panel">
@@ -190,7 +217,9 @@ export default async function Page({ params, searchParams }: Props) {
             </section>
           </main>
           <SiteFooter />
-          {admin && <AdminBar editHref={`/admin/blog/${post.id}`} editLabel="Bericht bewerken" />}
+          {admin && (
+            <AdminBar path={`/${parent.slug}/${post.slug}`} editHref={`/admin/blog/${post.id}`} editLabel="Bericht bewerken" pending={pending} />
+          )}
         </>
       );
     }

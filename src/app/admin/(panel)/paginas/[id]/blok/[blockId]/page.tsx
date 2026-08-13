@@ -39,7 +39,7 @@ export default async function BlockEditor({
           pageId={page.id}
           blockId={block.id}
           fields={def.fields}
-          initialData={block.data as Record<string, unknown>}
+          initialData={(block.draftData ?? block.data) as Record<string, unknown>}
           save={saveBlock}
         />
       </div>
